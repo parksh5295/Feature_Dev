@@ -1,0 +1,75 @@
+# behavior_deviation_experiment
+# dataset=netml
+# seed=42
+# path=C:\Feature_Dev\Dataset\netML_dataset.csv
+# anomaly_samples=5
+# rows=5020
+# time=2026-04-05T21:32:19
+# netml_label=(auto)
+
+=== 정상 기준: feature 평균(일부) ===
+Source Port                    4.979516e+04
+Destination Port               6.502855e+02
+Protocol                       6.128818e+00
+Flow Duration                  1.739193e+07
+Total Fwd Packets              1.315051e+01
+Total Backward Packets         1.387782e+01
+Total Length of Fwd Packets    1.586926e+03
+Total Length of Bwd Packets    1.726205e+04
+Fwd Packet Length Max          3.653147e+02
+Fwd Packet Length Min          2.085879e+00
+Fwd Packet Length Mean         8.628973e+01
+Fwd Packet Length Std          1.334744e+02
+
+=== Behavior score 분위수 (정상 분포 기준) ===
+  Data volume: p90=2.576e+04, p99=2.596e+05
+  Other features: p90=8.719e+04, p99=2.182e+06
+  Protocol / flags: p90=0.1313, p99=0.9151
+  Timing pattern: p90=2.499e+07, p99=3.472e+07
+
+=== 이상 샘플 예시: feature-level vs behavior-level ===
+
+--- 샘플 1 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.424e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.518e+06, Bwd IAT Max dev=7.592e+06
+Proposed (behavior deviation):
+  Data volume: 1.305e+04 → normal
+  Other features: 8.72e+04 → ↑
+  Protocol / flags: 0.04825 → normal
+  Timing pattern: 6.027e+06 → normal
+
+--- 샘플 2 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.424e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.518e+06, Bwd IAT Max dev=7.593e+06
+Proposed (behavior deviation):
+  Data volume: 1.305e+04 → normal
+  Other features: 8.721e+04 → ↑
+  Protocol / flags: 0.04825 → normal
+  Timing pattern: 6.027e+06 → normal
+
+--- 샘플 3 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.494e+07, Bwd IAT Total dev=1.441e+07, Fwd IAT Total dev=1.364e+07, Flow IAT Max dev=7.961e+06, Bwd IAT Max dev=7.681e+06, Idle Max dev=7.267e+06
+Proposed (behavior deviation):
+  Data volume: 2.131e+04 → normal
+  Other features: 8.709e+04 → normal
+  Protocol / flags: 0.1313 → ↑
+  Timing pattern: 5.373e+06 → normal
+
+--- 샘플 4 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Bwd IAT Total dev=1.002e+08, Fwd IAT Total dev=9.871e+07, Flow Duration dev=9.742e+07, Idle Max dev=3.771e+07, Bwd IAT Max dev=3.737e+07, Fwd IAT Max dev=3.538e+07
+Proposed (behavior deviation):
+  Data volume: 1.55e+04 → normal
+  Other features: 1.902e+05 → ↑
+  Protocol / flags: 0.04825 → normal
+  Timing pattern: 2.788e+07 → ↑
+
+--- 샘플 5 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.423e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.516e+06, Bwd IAT Max dev=7.593e+06
+Proposed (behavior deviation):
+  Data volume: 1.305e+04 → normal
+  Other features: 8.721e+04 → ↑
+  Protocol / flags: 0.04825 → normal
+  Timing pattern: 6.026e+06 → normal

@@ -1,0 +1,80 @@
+# behavior_deviation_experiment
+# dataset=nsl_kdd
+# seed=42
+# path=C:\Feature_Dev\Dataset\KDDTrain.csv
+# anomaly_samples=5
+# rows=125973
+# time=2026-04-05T21:27:15
+
+=== 정상 기준: feature 평균(일부) ===
+duration               168.587396
+src_bytes            13133.279331
+dst_bytes             4329.685223
+land                     0.000104
+wrong_fragment           0.000000
+urgent                   0.000148
+hot                      0.230655
+num_failed_logins        0.001381
+logged_in                0.710646
+num_compromised          0.507076
+root_shell               0.002034
+su_attempted             0.002049
+
+=== Behavior score 분위수 (정상 분포 기준) ===
+  Connection intensity: p90=57.85, p99=109.4
+  Data volume: p90=4366, p99=2.139e+04
+  Host access / shell: p90=0.1472, p99=0.7077
+  Protocol / error rates: p90=0.1677, p99=0.3293
+  Timing pattern: p90=168.6, p99=6210
+
+=== 이상 샘플 예시: feature-level vs behavior-level ===
+
+--- 샘플 1 | label=ipsweep ---
+Feature explanation (상위 deviation):
+  src_bytes dev=1.312e+04, dst_bytes dev=4330, duration dev=168.6, dst_host_srv_count dev=164.3, dst_host_count dev=145.4, srv_count dev=26.69
+Proposed (behavior deviation):
+  Connection intensity: 59.72 → ↑
+  Data volume: 4361 → normal
+  Host access / shell: 0.1472 → ↑
+  Protocol / error rates: 0.107 → normal
+  Timing pattern: 168.6 → ↑
+
+--- 샘플 2 | label=portsweep ---
+Feature explanation (상위 deviation):
+  src_bytes dev=1.313e+04, dst_bytes dev=4330, duration dev=168.6, dst_host_srv_count dev=160.3, dst_host_count dev=80.57, srv_count dev=26.69
+Proposed (behavior deviation):
+  Connection intensity: 48.35 → normal
+  Data volume: 4364 → normal
+  Host access / shell: 0.1472 → ↑
+  Protocol / error rates: 0.09145 → normal
+  Timing pattern: 168.6 → ↑
+
+--- 샘플 3 | label=neptune ---
+Feature explanation (상위 deviation):
+  src_bytes dev=1.313e+04, dst_bytes dev=4330, count dev=234.5, dst_host_srv_count dev=188.3, duration dev=168.6, dst_host_count dev=107.6
+Proposed (behavior deviation):
+  Connection intensity: 91.7 → ↑
+  Data volume: 4366 → ↑
+  Host access / shell: 0.1472 → ↑
+  Protocol / error rates: 0.4637 → ↑↑
+  Timing pattern: 168.6 → ↑
+
+--- 샘플 4 | label=neptune ---
+Feature explanation (상위 deviation):
+  src_bytes dev=1.313e+04, dst_bytes dev=4330, count dev=198.5, dst_host_srv_count dev=173.3, duration dev=168.6, dst_host_count dev=107.6
+Proposed (behavior deviation):
+  Connection intensity: 82.2 → ↑
+  Data volume: 4366 → ↑
+  Host access / shell: 0.1472 → ↑
+  Protocol / error rates: 0.4607 → ↑↑
+  Timing pattern: 168.6 → ↑
+
+--- 샘플 5 | label=satan ---
+Feature explanation (상위 deviation):
+  src_bytes dev=1.313e+04, dst_bytes dev=4330, dst_host_srv_count dev=189.3, duration dev=168.6, dst_host_count dev=107.6, count dev=106.5
+Proposed (behavior deviation):
+  Connection intensity: 71.7 → ↑
+  Data volume: 4366 → ↑
+  Host access / shell: 0.1472 → ↑
+  Protocol / error rates: 0.5258 → ↑↑
+  Timing pattern: 168.6 → ↑

@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Iterator, List, Mapping, Optional, Sequence, TextIO, Tuple
 
 import numpy as np
 import pandas as pd
@@ -18,6 +20,38 @@ from utils.nsl_kdd_config import (
     NSL_NORMAL_LABELS,
     NSL_OPTIONAL_DIFFICULTY,
 )
+
+_ROOT = Path(__file__).resolve().parent
+_DEFAULT_DATASET_DIR = _ROOT / "Dataset"
+_DEFAULT_NSL_KDD_CSV = _DEFAULT_DATASET_DIR / "KDDTrain.csv"
+_DEFAULT_NETML_CSV = _DEFAULT_DATASET_DIR / "netML_dataset.csv"
+_RESULTS_DIR = _ROOT / "results"
+
+
+class _TeeStdout:
+    def __init__(self, *streams: TextIO) -> None:
+        self._streams = streams
+
+    def write(self, data: str) -> int:
+        for s in self._streams:
+            s.write(data)
+            s.flush()
+        return len(data)
+
+    def flush(self) -> None:
+        for s in self._streams:
+            s.flush()
+
+
+@contextmanager
+def _tee_stdout_to_file(log_file: TextIO) -> Iterator[None]:
+    prev = sys.stdout
+    sys.stdout = _TeeStdout(prev, log_file)
+    try:
+        yield
+    finally:
+        sys.stdout = prev
+
 
 # First matching rule wins; used when column names vary across NetML exports.
 NETML_GROUP_RULES: List[Tuple[re.Pattern[str], str]] = [
@@ -275,13 +309,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         required=True,
         help="데이터셋 종류",
     )
-    p.add_argument("--path", type=Path, required=True, help="CSV 또는 NSL-KDD .txt 경로")
+    p.add_argument(
+        "--path",
+        type=Path,
+        default=None,
+        help=(
+            "CSV or NSL-KDD .txt path. Default: Dataset/KDDTrain.csv (nsl_kdd) or "
+            "Dataset/netML_dataset.csv (netml) next to this script."
+        ),
+    )
     p.add_argument("--netml-label", type=str, default=None, help="NetML 라벨 컬럼명")
     p.add_argument("--anomaly-samples", type=int, default=5, help="출력할 이상 샘플 개수")
     p.add_argument("--seed", type=int, default=42, help="랜덤 시드")
     args = p.parse_args(list(argv) if argv is not None else None)
 
-    path = args.path.expanduser()
+    if args.path is None:
+        path = _DEFAULT_NSL_KDD_CSV if args.dataset == "nsl_kdd" else _DEFAULT_NETML_CSV
+    else:
+        path = args.path.expanduser()
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+
     if not path.is_file():
         print(f"파일 없음: {path}", file=sys.stderr)
         return 1
@@ -303,13 +351,36 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         groups = {k: v for k, v in groups.items() if v}
         normal_pred = default_netml_normal_predicate()
 
-    run_experiment(
-        df,
-        groups,
-        normal_pred,
-        anomaly_sample_limit=args.anomaly_samples,
-        random_state=args.seed,
+    _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path = (
+        _RESULTS_DIR
+        / f"{args.dataset}_seed{args.seed}_anom{args.anomaly_samples}_{stamp}.log"
     )
+    header_lines = [
+        "# behavior_deviation_experiment",
+        f"# dataset={args.dataset}",
+        f"# seed={args.seed}",
+        f"# path={path.resolve()}",
+        f"# anomaly_samples={args.anomaly_samples}",
+        f"# rows={len(df)}",
+        f"# time={datetime.now().isoformat(timespec='seconds')}",
+    ]
+    if args.dataset == "netml":
+        header_lines.append(f"# netml_label={args.netml_label or '(auto)'}")
+
+    with open(log_path, "w", encoding="utf-8") as logf:
+        logf.write("\n".join(header_lines) + "\n\n")
+        with _tee_stdout_to_file(logf):
+            run_experiment(
+                df,
+                groups,
+                normal_pred,
+                anomaly_sample_limit=args.anomaly_samples,
+                random_state=args.seed,
+            )
+
+    print(f"Log written: {log_path}", file=sys.stderr)
     return 0
 
 
