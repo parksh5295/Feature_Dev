@@ -40,6 +40,12 @@ def _normalize_label(s: str) -> str:
     return str(s).strip().lower()
 
 
+def _drop_unnamed_index_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Strip pandas export index columns (e.g. Unnamed: 0) from flow CSVs."""
+    keep = [c for c in df.columns if not str(c).strip().lower().startswith("unnamed")]
+    return df[keep]
+
+
 def load_nsl_kdd(path: Path) -> pd.DataFrame:
     with path.open("r", encoding="utf-8", errors="replace") as f:
         first = f.readline()
@@ -82,6 +88,7 @@ def load_netml_csv(path: Path, label_column: Optional[str]) -> pd.DataFrame:
         )
     df = df.rename(columns={lc: "label"})
     df["label"] = df["label"].astype(str).str.strip().str.lower()
+    df = _drop_unnamed_index_columns(df)
     return df
 
 
@@ -103,10 +110,12 @@ def numeric_feature_columns(
 
 
 def prepare_numeric_frame(df: pd.DataFrame, feature_cols: List[str]) -> Tuple[pd.DataFrame, List[str]]:
-    """Coerce to numeric; fill NaN with column medians."""
+    """Coerce to numeric; map inf to NaN; impute with column medians then 0 if still NaN."""
     X = df[feature_cols].apply(pd.to_numeric, errors="coerce")
+    X = X.replace([np.inf, -np.inf], np.nan)
     med = X.median(numeric_only=True)
     X = X.fillna(med)
+    X = X.fillna(0.0)
     usable = [c for c in feature_cols if c in X.columns and X[c].notna().all()]
     return X[usable], usable
 
