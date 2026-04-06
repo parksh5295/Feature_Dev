@@ -1,0 +1,565 @@
+# grouping_ablation_experiment
+# dataset(s)=both
+# seed=42
+# anomaly_samples=5
+# time=2026-04-06T07:47:20
+
+Variants:
+  coarse: fewer, merged behavior groups
+  baseline: current NSL config / NetML regex rules
+  fine: more groups (NSL splits rates/volume; NetML splits timing)
+
+# nsl_path=C:\Feature_Dev\Dataset\KDDTest.csv rows=22544
+
+========================================================================
+# Dataset: nsl_kdd
+# Same anomaly rows (indices): [np.int64(17423), np.int64(9788), np.int64(14729), np.int64(2046), np.int64(9666)]
+========================================================================
+
+### Variant: coarse (3 behavior groups, 38 features mapped)
+### Group -> features:
+  - Connection and protocol: 19 features
+  - Host access / shell: 14 features
+  - Volume and timing: 5 features
+
+=== 정상 기준: feature 평균(일부) ===
+duration               47.068376
+src_bytes            2530.512512
+dst_bytes            4165.124601
+land                    0.000000
+wrong_fragment          0.012975
+urgent                  0.000000
+hot                     0.051385
+num_failed_logins       0.001133
+logged_in               0.756874
+num_compromised         0.189270
+root_shell              0.001854
+su_attempted            0.000515
+
+=== Behavior score 분위수 (정상 분포 기준) ===
+  Connection and protocol: p90=20.57, p99=56.95
+  Host access / shell: p90=0.08757, p99=0.1215
+  Volume and timing: p90=1588, p99=9141
+
+=== 이상 샘플 예시: feature-level vs behavior-level ===
+
+--- 샘플 1 | label=ipsweep ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2513, dst_host_srv_count dev=156, dst_host_count dev=154.8, duration dev=47.07, srv_count dev=39.82
+Proposed (behavior deviation):
+  Connection and protocol: 20.49 → normal
+  Host access / shell: 0.08757 → ↑
+  Volume and timing: 1345 → normal
+
+--- 샘플 2 | label=smurf ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2023, count dev=473.5, srv_count dev=470.2, dst_host_srv_count dev=173, duration dev=47.07
+Proposed (behavior deviation):
+  Connection and protocol: 59.45 → ↑↑
+  Host access / shell: 0.08757 → ↑
+  Volume and timing: 1247 → normal
+
+--- 샘플 3 | label=smurf ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=1523, count dev=234.5, srv_count dev=231.2, dst_host_count dev=99.16, duration dev=47.07
+Proposed (behavior deviation):
+  Connection and protocol: 31.79 → ↑
+  Host access / shell: 0.08757 → ↑
+  Volume and timing: 1147 → normal
+
+--- 샘플 4 | label=neptune ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2531, dst_host_srv_count dev=208, count dev=205.5, dst_host_count dev=99.16, duration dev=47.07
+Proposed (behavior deviation):
+  Connection and protocol: 28.98 → ↑
+  Host access / shell: 0.08757 → ↑
+  Volume and timing: 1349 → normal
+
+--- 샘플 5 | label=mscan ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2531, dst_host_srv_count dev=214, dst_host_count dev=144.8, duration dev=47.07, srv_count dev=35.82
+Proposed (behavior deviation):
+  Connection and protocol: 22.93 → ↑
+  Host access / shell: 0.08757 → ↑
+  Volume and timing: 1349 → normal
+
+### Variant: baseline (5 behavior groups, 38 features mapped)
+### Group -> features:
+  - Connection intensity: 6 features
+  - Data volume: 4 features
+  - Host access / shell: 14 features
+  - Protocol / error rates: 13 features
+  - Timing pattern: 1 features
+
+=== 정상 기준: feature 평균(일부) ===
+duration               47.068376
+src_bytes            2530.512512
+dst_bytes            4165.124601
+land                    0.000000
+wrong_fragment          0.012975
+urgent                  0.000000
+hot                     0.051385
+num_failed_logins       0.001133
+logged_in               0.756874
+num_compromised         0.189270
+root_shell              0.001854
+su_attempted            0.000515
+
+=== Behavior score 분위수 (정상 분포 기준) ===
+  Connection intensity: p90=64.77, p99=180.2
+  Data volume: p90=1931, p99=1.096e+04
+  Host access / shell: p90=0.08757, p99=0.1215
+  Protocol / error rates: p90=0.07969, p99=0.3229
+  Timing pattern: p90=47.07, p99=47.07
+
+=== 이상 샘플 예시: feature-level vs behavior-level ===
+
+--- 샘플 1 | label=ipsweep ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2513, dst_host_srv_count dev=156, dst_host_count dev=154.8, duration dev=47.07, srv_count dev=39.82
+Proposed (behavior deviation):
+  Connection intensity: 64.71 → normal
+  Data volume: 1669 → normal
+  Host access / shell: 0.08757 → ↑
+  Protocol / error rates: 0.0843 → ↑
+  Timing pattern: 47.07 → ↑↑
+
+--- 샘플 2 | label=smurf ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2023, count dev=473.5, srv_count dev=470.2, dst_host_srv_count dev=173, duration dev=47.07
+Proposed (behavior deviation):
+  Connection intensity: 188 → ↑↑
+  Data volume: 1547 → normal
+  Host access / shell: 0.08757 → ↑
+  Protocol / error rates: 0.1158 → ↑
+  Timing pattern: 47.07 → ↑↑
+
+--- 샘플 3 | label=smurf ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=1523, count dev=234.5, srv_count dev=231.2, dst_host_count dev=99.16, duration dev=47.07
+Proposed (behavior deviation):
+  Connection intensity: 100.5 → ↑
+  Data volume: 1422 → normal
+  Host access / shell: 0.08757 → ↑
+  Protocol / error rates: 0.0843 → ↑
+  Timing pattern: 47.07 → ↑↑
+
+--- 샘플 4 | label=neptune ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2531, dst_host_srv_count dev=208, count dev=205.5, dst_host_count dev=99.16, duration dev=47.07
+Proposed (behavior deviation):
+  Connection intensity: 90.77 → ↑
+  Data volume: 1674 → normal
+  Host access / shell: 0.08757 → ↑
+  Protocol / error rates: 0.4596 → ↑↑
+  Timing pattern: 47.07 → ↑↑
+
+--- 샘플 5 | label=mscan ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2531, dst_host_srv_count dev=214, dst_host_count dev=144.8, duration dev=47.07, srv_count dev=35.82
+Proposed (behavior deviation):
+  Connection intensity: 71.67 → ↑
+  Data volume: 1674 → normal
+  Host access / shell: 0.08757 → ↑
+  Protocol / error rates: 0.4391 → ↑↑
+  Timing pattern: 47.07 → ↑↑
+
+### Variant: fine (7 behavior groups, 40 features mapped)
+### Group -> features:
+  - Byte volume: 2 features
+  - Connection intensity: 6 features
+  - Error rates: 8 features
+  - Host access / shell: 14 features
+  - Packet-level signals: 2 features
+  - Service / diversity rates: 7 features
+  - Timing (duration): 1 features
+
+=== 정상 기준: feature 평균(일부) ===
+duration               47.068376
+src_bytes            2530.512512
+dst_bytes            4165.124601
+land                    0.000000
+wrong_fragment          0.012975
+urgent                  0.000000
+hot                     0.051385
+num_failed_logins       0.001133
+logged_in               0.756874
+num_compromised         0.189270
+root_shell              0.001854
+su_attempted            0.000515
+
+=== Behavior score 분위수 (정상 분포 기준) ===
+  Byte volume: p90=3862, p99=2.192e+04
+  Connection intensity: p90=64.77, p99=180.2
+  Error rates: p90=0.006981, p99=0.1962
+  Host access / shell: p90=0.08757, p99=0.1215
+  Packet-level signals: p90=0.006487, p99=0.006487
+  Service / diversity rates: p90=0.1674, p99=0.4947
+  Timing (duration): p90=47.07, p99=47.07
+
+=== 이상 샘플 예시: feature-level vs behavior-level ===
+
+--- 샘플 1 | label=ipsweep ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2513, dst_host_srv_count dev=156, dst_host_count dev=154.8, duration dev=47.07, srv_count dev=39.82
+Proposed (behavior deviation):
+  Byte volume: 3339 → normal
+  Connection intensity: 64.71 → normal
+  Error rates: 0.006732 → normal
+  Host access / shell: 0.08757 → ↑
+  Packet-level signals: 0.006487 → ↑↑
+  Service / diversity rates: 0.3065 → ↑
+  Timing (duration): 47.07 → ↑↑
+
+--- 샘플 2 | label=smurf ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2023, count dev=473.5, srv_count dev=470.2, dst_host_srv_count dev=173, duration dev=47.07
+Proposed (behavior deviation):
+  Byte volume: 3094 → normal
+  Connection intensity: 188 → ↑↑
+  Error rates: 0.08646 → ↑
+  Host access / shell: 0.08757 → ↑
+  Packet-level signals: 0.006487 → ↑↑
+  Service / diversity rates: 0.1362 → normal
+  Timing (duration): 47.07 → ↑↑
+
+--- 샘플 3 | label=smurf ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=1523, count dev=234.5, srv_count dev=231.2, dst_host_count dev=99.16, duration dev=47.07
+Proposed (behavior deviation):
+  Byte volume: 2844 → normal
+  Connection intensity: 100.5 → ↑
+  Error rates: 0.006732 → normal
+  Host access / shell: 0.08757 → ↑
+  Packet-level signals: 0.006487 → ↑↑
+  Service / diversity rates: 0.1688 → ↑
+  Timing (duration): 47.07 → ↑↑
+
+--- 샘플 4 | label=neptune ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2531, dst_host_srv_count dev=208, count dev=205.5, dst_host_count dev=99.16, duration dev=47.07
+Proposed (behavior deviation):
+  Byte volume: 3348 → normal
+  Connection intensity: 90.77 → ↑
+  Error rates: 0.4946 → ↑↑
+  Host access / shell: 0.08757 → ↑
+  Packet-level signals: 0.006487 → ↑↑
+  Service / diversity rates: 0.3082 → ↑
+  Timing (duration): 47.07 → ↑↑
+
+--- 샘플 5 | label=mscan ---
+Feature explanation (상위 deviation):
+  dst_bytes dev=4165, src_bytes dev=2531, dst_host_srv_count dev=214, dst_host_count dev=144.8, duration dev=47.07, srv_count dev=35.82
+Proposed (behavior deviation):
+  Byte volume: 3348 → normal
+  Connection intensity: 71.67 → ↑
+  Error rates: 0.3964 → ↑↑
+  Host access / shell: 0.08757 → ↑
+  Packet-level signals: 0.006487 → ↑↑
+  Service / diversity rates: 0.4907 → ↑
+  Timing (duration): 47.07 → ↑↑
+
+========================================================================
+# COMPARISON (same rows across variants)
+# n_elevated = count of behavior groups with ↑ or ↑↑ for that sample.
+========================================================================
+
+--- Row index 17423 ---
+  coarse        n_elevated=1  |  --- 샘플 1 | label=ipsweep ---
+  baseline      n_elevated=3  |  --- 샘플 1 | label=ipsweep ---
+  fine          n_elevated=4  |  --- 샘플 1 | label=ipsweep ---
+  spread(max-min)=3  (0 => identical elevation count across variants)
+
+--- Row index 9788 ---
+  coarse        n_elevated=2  |  --- 샘플 2 | label=smurf ---
+  baseline      n_elevated=4  |  --- 샘플 2 | label=smurf ---
+  fine          n_elevated=5  |  --- 샘플 2 | label=smurf ---
+  spread(max-min)=3  (0 => identical elevation count across variants)
+
+--- Row index 14729 ---
+  coarse        n_elevated=2  |  --- 샘플 3 | label=smurf ---
+  baseline      n_elevated=4  |  --- 샘플 3 | label=smurf ---
+  fine          n_elevated=5  |  --- 샘플 3 | label=smurf ---
+  spread(max-min)=3  (0 => identical elevation count across variants)
+
+--- Row index 2046 ---
+  coarse        n_elevated=2  |  --- 샘플 4 | label=neptune ---
+  baseline      n_elevated=4  |  --- 샘플 4 | label=neptune ---
+  fine          n_elevated=6  |  --- 샘플 4 | label=neptune ---
+  spread(max-min)=4  (0 => identical elevation count across variants)
+
+--- Row index 9666 ---
+  coarse        n_elevated=2  |  --- 샘플 5 | label=mscan ---
+  baseline      n_elevated=4  |  --- 샘플 5 | label=mscan ---
+  fine          n_elevated=6  |  --- 샘플 5 | label=mscan ---
+  spread(max-min)=4  (0 => identical elevation count across variants)
+# netml_path=C:\Feature_Dev\Dataset\netML_dataset.csv rows=5020
+
+========================================================================
+# Dataset: netml
+# Same anomaly rows (indices): [np.int64(4904), np.int64(2478), np.int64(4845), np.int64(2303), np.int64(2476)]
+========================================================================
+
+### Variant: coarse (3 behavior groups, 80 features mapped)
+### Group -> features:
+  - Flow and protocol: 13 features
+  - Other features: 9 features
+  - Volume and timing: 58 features
+
+=== 정상 기준: feature 평균(일부) ===
+Source Port                    4.979516e+04
+Destination Port               6.502855e+02
+Protocol                       6.128818e+00
+Flow Duration                  1.739193e+07
+Total Fwd Packets              1.315051e+01
+Total Backward Packets         1.387782e+01
+Total Length of Fwd Packets    1.586926e+03
+Total Length of Bwd Packets    1.726205e+04
+Fwd Packet Length Max          3.653147e+02
+Fwd Packet Length Min          2.085879e+00
+Fwd Packet Length Mean         8.628973e+01
+Fwd Packet Length Std          1.334744e+02
+
+=== Behavior score 분위수 (정상 분포 기준) ===
+  Flow and protocol: p90=0.1313, p99=0.9151
+  Other features: p90=8.719e+04, p99=2.182e+06
+  Volume and timing: p90=8.246e+06, p99=1.139e+07
+
+=== 이상 샘플 예시: feature-level vs behavior-level ===
+
+--- 샘플 1 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.424e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.518e+06, Bwd IAT Max dev=7.592e+06
+Proposed (behavior deviation):
+  Flow and protocol: 0.04825 → normal
+  Other features: 8.72e+04 → ↑
+  Volume and timing: 1.983e+06 → normal
+
+--- 샘플 2 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.424e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.518e+06, Bwd IAT Max dev=7.593e+06
+Proposed (behavior deviation):
+  Flow and protocol: 0.04825 → normal
+  Other features: 8.721e+04 → ↑
+  Volume and timing: 1.983e+06 → normal
+
+--- 샘플 3 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.494e+07, Bwd IAT Total dev=1.441e+07, Fwd IAT Total dev=1.364e+07, Flow IAT Max dev=7.961e+06, Bwd IAT Max dev=7.681e+06, Idle Max dev=7.267e+06
+Proposed (behavior deviation):
+  Flow and protocol: 0.1313 → ↑
+  Other features: 8.709e+04 → normal
+  Volume and timing: 1.774e+06 → normal
+
+--- 샘플 4 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Bwd IAT Total dev=1.002e+08, Fwd IAT Total dev=9.871e+07, Flow Duration dev=9.742e+07, Idle Max dev=3.771e+07, Bwd IAT Max dev=3.737e+07, Fwd IAT Max dev=3.538e+07
+Proposed (behavior deviation):
+  Flow and protocol: 0.04825 → normal
+  Other features: 1.902e+05 → ↑
+  Volume and timing: 9.144e+06 → ↑
+
+--- 샘플 5 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.423e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.516e+06, Bwd IAT Max dev=7.593e+06
+Proposed (behavior deviation):
+  Flow and protocol: 0.04825 → normal
+  Other features: 8.721e+04 → ↑
+  Volume and timing: 1.983e+06 → normal
+
+### Variant: baseline (4 behavior groups, 80 features mapped)
+### Group -> features:
+  - Data volume: 39 features
+  - Other features: 9 features
+  - Protocol / flags: 13 features
+  - Timing pattern: 19 features
+
+=== 정상 기준: feature 평균(일부) ===
+Source Port                    4.979516e+04
+Destination Port               6.502855e+02
+Protocol                       6.128818e+00
+Flow Duration                  1.739193e+07
+Total Fwd Packets              1.315051e+01
+Total Backward Packets         1.387782e+01
+Total Length of Fwd Packets    1.586926e+03
+Total Length of Bwd Packets    1.726205e+04
+Fwd Packet Length Max          3.653147e+02
+Fwd Packet Length Min          2.085879e+00
+Fwd Packet Length Mean         8.628973e+01
+Fwd Packet Length Std          1.334744e+02
+
+=== Behavior score 분위수 (정상 분포 기준) ===
+  Data volume: p90=2.576e+04, p99=2.596e+05
+  Other features: p90=8.719e+04, p99=2.182e+06
+  Protocol / flags: p90=0.1313, p99=0.9151
+  Timing pattern: p90=2.499e+07, p99=3.472e+07
+
+=== 이상 샘플 예시: feature-level vs behavior-level ===
+
+--- 샘플 1 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.424e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.518e+06, Bwd IAT Max dev=7.592e+06
+Proposed (behavior deviation):
+  Data volume: 1.305e+04 → normal
+  Other features: 8.72e+04 → ↑
+  Protocol / flags: 0.04825 → normal
+  Timing pattern: 6.027e+06 → normal
+
+--- 샘플 2 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.424e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.518e+06, Bwd IAT Max dev=7.593e+06
+Proposed (behavior deviation):
+  Data volume: 1.305e+04 → normal
+  Other features: 8.721e+04 → ↑
+  Protocol / flags: 0.04825 → normal
+  Timing pattern: 6.027e+06 → normal
+
+--- 샘플 3 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.494e+07, Bwd IAT Total dev=1.441e+07, Fwd IAT Total dev=1.364e+07, Flow IAT Max dev=7.961e+06, Bwd IAT Max dev=7.681e+06, Idle Max dev=7.267e+06
+Proposed (behavior deviation):
+  Data volume: 2.131e+04 → normal
+  Other features: 8.709e+04 → normal
+  Protocol / flags: 0.1313 → ↑
+  Timing pattern: 5.373e+06 → normal
+
+--- 샘플 4 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Bwd IAT Total dev=1.002e+08, Fwd IAT Total dev=9.871e+07, Flow Duration dev=9.742e+07, Idle Max dev=3.771e+07, Bwd IAT Max dev=3.737e+07, Fwd IAT Max dev=3.538e+07
+Proposed (behavior deviation):
+  Data volume: 1.55e+04 → normal
+  Other features: 1.902e+05 → ↑
+  Protocol / flags: 0.04825 → normal
+  Timing pattern: 2.788e+07 → ↑
+
+--- 샘플 5 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.423e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.516e+06, Bwd IAT Max dev=7.593e+06
+Proposed (behavior deviation):
+  Data volume: 1.305e+04 → normal
+  Other features: 8.721e+04 → ↑
+  Protocol / flags: 0.04825 → normal
+  Timing pattern: 6.026e+06 → normal
+
+### Variant: fine (6 behavior groups, 80 features mapped)
+### Group -> features:
+  - Data volume: 39 features
+  - Flow duration: 1 features
+  - IAT timing: 14 features
+  - Idle / active timing: 4 features
+  - Other features: 9 features
+  - Protocol / flags: 13 features
+
+=== 정상 기준: feature 평균(일부) ===
+Source Port                    4.979516e+04
+Destination Port               6.502855e+02
+Protocol                       6.128818e+00
+Flow Duration                  1.739193e+07
+Total Fwd Packets              1.315051e+01
+Total Backward Packets         1.387782e+01
+Total Length of Fwd Packets    1.586926e+03
+Total Length of Bwd Packets    1.726205e+04
+Fwd Packet Length Max          3.653147e+02
+Fwd Packet Length Min          2.085879e+00
+Fwd Packet Length Mean         8.628973e+01
+Fwd Packet Length Std          1.334744e+02
+
+=== Behavior score 분위수 (정상 분포 기준) ===
+  Data volume: p90=2.576e+04, p99=2.596e+05
+  Flow duration: p90=7.269e+07, p99=9.29e+07
+  IAT timing: p90=2.111e+07, p99=3.355e+07
+  Idle / active timing: p90=2.295e+07, p99=2.932e+07
+  Other features: p90=8.719e+04, p99=2.182e+06
+  Protocol / flags: p90=0.1313, p99=0.9151
+
+=== 이상 샘플 예시: feature-level vs behavior-level ===
+
+--- 샘플 1 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.424e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.518e+06, Bwd IAT Max dev=7.592e+06
+Proposed (behavior deviation):
+  Data volume: 1.305e+04 → normal
+  Flow duration: 1.713e+07 → normal
+  IAT timing: 5.518e+06 → normal
+  Idle / active timing: 5.031e+06 → normal
+  Other features: 8.72e+04 → ↑
+  Protocol / flags: 0.04825 → normal
+
+--- 샘플 2 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.424e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.518e+06, Bwd IAT Max dev=7.593e+06
+Proposed (behavior deviation):
+  Data volume: 1.305e+04 → normal
+  Flow duration: 1.713e+07 → normal
+  IAT timing: 5.518e+06 → normal
+  Idle / active timing: 5.031e+06 → normal
+  Other features: 8.721e+04 → ↑
+  Protocol / flags: 0.04825 → normal
+
+--- 샘플 3 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.494e+07, Bwd IAT Total dev=1.441e+07, Fwd IAT Total dev=1.364e+07, Flow IAT Max dev=7.961e+06, Bwd IAT Max dev=7.681e+06, Idle Max dev=7.267e+06
+Proposed (behavior deviation):
+  Data volume: 2.131e+04 → normal
+  Flow duration: 1.494e+07 → normal
+  IAT timing: 4.787e+06 → normal
+  Idle / active timing: 5.031e+06 → normal
+  Other features: 8.709e+04 → normal
+  Protocol / flags: 0.1313 → ↑
+
+--- 샘플 4 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Bwd IAT Total dev=1.002e+08, Fwd IAT Total dev=9.871e+07, Flow Duration dev=9.742e+07, Idle Max dev=3.771e+07, Bwd IAT Max dev=3.737e+07, Fwd IAT Max dev=3.538e+07
+Proposed (behavior deviation):
+  Data volume: 1.55e+04 → normal
+  Flow duration: 9.742e+07 → ↑↑
+  IAT timing: 2.513e+07 → ↑
+  Idle / active timing: 2.012e+07 → normal
+  Other features: 1.902e+05 → ↑
+  Protocol / flags: 0.04825 → normal
+
+--- 샘플 5 | label=anomaly ---
+Feature explanation (상위 deviation):
+  Flow Duration dev=1.713e+07, Fwd IAT Total dev=1.584e+07, Bwd IAT Total dev=1.423e+07, Flow IAT Max dev=1.033e+07, Fwd IAT Max dev=9.516e+06, Bwd IAT Max dev=7.593e+06
+Proposed (behavior deviation):
+  Data volume: 1.305e+04 → normal
+  Flow duration: 1.713e+07 → normal
+  IAT timing: 5.518e+06 → normal
+  Idle / active timing: 5.031e+06 → normal
+  Other features: 8.721e+04 → ↑
+  Protocol / flags: 0.04825 → normal
+
+========================================================================
+# COMPARISON (same rows across variants)
+# n_elevated = count of behavior groups with ↑ or ↑↑ for that sample.
+========================================================================
+
+--- Row index 4904 ---
+  coarse        n_elevated=1  |  --- 샘플 1 | label=anomaly ---
+  baseline      n_elevated=1  |  --- 샘플 1 | label=anomaly ---
+  fine          n_elevated=1  |  --- 샘플 1 | label=anomaly ---
+  spread(max-min)=0  (0 => identical elevation count across variants)
+
+--- Row index 2478 ---
+  coarse        n_elevated=1  |  --- 샘플 2 | label=anomaly ---
+  baseline      n_elevated=1  |  --- 샘플 2 | label=anomaly ---
+  fine          n_elevated=1  |  --- 샘플 2 | label=anomaly ---
+  spread(max-min)=0  (0 => identical elevation count across variants)
+
+--- Row index 4845 ---
+  coarse        n_elevated=1  |  --- 샘플 3 | label=anomaly ---
+  baseline      n_elevated=1  |  --- 샘플 3 | label=anomaly ---
+  fine          n_elevated=1  |  --- 샘플 3 | label=anomaly ---
+  spread(max-min)=0  (0 => identical elevation count across variants)
+
+--- Row index 2303 ---
+  coarse        n_elevated=2  |  --- 샘플 4 | label=anomaly ---
+  baseline      n_elevated=2  |  --- 샘플 4 | label=anomaly ---
+  fine          n_elevated=3  |  --- 샘플 4 | label=anomaly ---
+  spread(max-min)=1  (0 => identical elevation count across variants)
+
+--- Row index 2476 ---
+  coarse        n_elevated=1  |  --- 샘플 5 | label=anomaly ---
+  baseline      n_elevated=1  |  --- 샘플 5 | label=anomaly ---
+  fine          n_elevated=1  |  --- 샘플 5 | label=anomaly ---
+  spread(max-min)=0  (0 => identical elevation count across variants)

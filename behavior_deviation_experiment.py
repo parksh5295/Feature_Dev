@@ -222,6 +222,7 @@ def run_experiment(
     normal_label_predicate,
     anomaly_sample_limit: int = 5,
     random_state: int = 42,
+    anomaly_indices: Optional[np.ndarray] = None,
 ) -> None:
     feature_cols = numeric_feature_columns(df)
     grouped_feats = set()
@@ -254,9 +255,12 @@ def run_experiment(
         print("이상 표본이 없습니다.")
         return
 
-    rng = np.random.default_rng(random_state)
-    pick_n = min(anomaly_sample_limit, len(anomaly_idx))
-    chosen = rng.choice(anomaly_idx.to_numpy(), size=pick_n, replace=False)
+    if anomaly_indices is not None:
+        chosen = np.asarray(anomaly_indices, dtype=object)
+    else:
+        rng = np.random.default_rng(random_state)
+        pick_n = min(anomaly_sample_limit, len(anomaly_idx))
+        chosen = rng.choice(anomaly_idx.to_numpy(), size=pick_n, replace=False)
 
     print("=== 정상 기준: feature 평균(일부) ===")
     print(mu.head(12).to_string())
