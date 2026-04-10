@@ -2,11 +2,12 @@
 """
 Visualize feature-level vs behavior-level deviation for the proposed method.
 
-1) Dual panel: top-k feature deviations |x-mu| vs per-behavior D_ik with q90/q99 lines.
+1) Dual (two files): (a) top-k feature deviations |x-mu|; (b) per-behavior D_ik with q90/q99 lines.
 2) Heatmaps: rows=anomaly samples, cols=behavior groups (baseline), NSL-KDD | NetML.
 
 Example:
   python plot_behavior_explanation.py --mode dual --dataset nsl_kdd --row-index 17423
+  # writes ..._a.png (features) and ..._b.png (behavior scores)
   python plot_behavior_explanation.py --mode heatmap --seed 42 --anomaly-samples 5
 """
 
@@ -77,45 +78,39 @@ def _truncate(s: str, n: int = 32) -> str:
     return s if len(s) <= n else s[: n - 2] + "…"
 
 
-def plot_dual_panel(
+def plot_panel_a(
     out_path: Path,
-    X_all: pd.DataFrame,
-    df_work: pd.DataFrame,
-    mu: pd.Series,
+    dev: pd.Series,
+    top_k: int,
+) -> None:
+    top = dev.sort_values(ascending=False).head(top_k)
+    n = len(top)
+    fig, ax = plt.subplots(figsize=(7.0, max(3.2, 0.45 * n)))
+    y_pos = np.arange(n)
+    ax.barh(y_pos, top.values, color="steelblue")
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels([_truncate(str(i)) for i in top.index])
+    ax.invert_yaxis()
+    ax.set_xlabel(r"Feature deviation $|x_{ij}-\mu_j|$")
+    ax.grid(axis="x", alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_panel_b(
+    out_path: Path,
+    scores: Mapping[str, float],
     q_hi: pd.Series,
     q_vhi: pd.Series,
-    groups: Mapping[str, List[str]],
-    row_index: int,
-    top_k: int,
-    title_prefix: str,
 ) -> None:
-    if row_index not in X_all.index:
-        raise ValueError(f"row_index {row_index} not in processed frame index.")
-
-    row = X_all.loc[row_index]
-    lbl = df_work.loc[row_index, "label"]
-    dev = bde.feature_deviations_row(row, mu)
-    scores = bde.behavior_scores_from_deviations(dev, groups)
-
     beh_names = sorted(scores.keys())
     n_b = len(beh_names)
-    fig = plt.figure(figsize=(12, max(4.0, 0.55 * n_b)))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[1.1, 1.0], wspace=0.35)
-    axL = fig.add_subplot(gs[0, 0])
-    gs_r = gridspec.GridSpecFromSubplotSpec(n_b, 1, subplot_spec=gs[0, 1], hspace=0.4)
-
-    top = dev.sort_values(ascending=False).head(top_k)
-    y_pos = np.arange(len(top))
-    axL.barh(y_pos, top.values, color="steelblue")
-    axL.set_yticks(y_pos)
-    axL.set_yticklabels([_truncate(str(i)) for i in top.index])
-    axL.invert_yaxis()
-    axL.set_xlabel(r"Feature deviation $|x_{ij}-\mu_j|$")
-    axL.set_title("(a) Top feature deviations")
-    axL.grid(axis="x", alpha=0.3)
+    fig = plt.figure(figsize=(10, max(4.0, 0.55 * n_b)))
+    gs = gridspec.GridSpec(n_b, 1, figure=fig, hspace=0.4)
 
     for i, bname in enumerate(beh_names):
-        ax = fig.add_subplot(gs_r[i, 0])
+        ax = fig.add_subplot(gs[i, 0])
         D = scores[bname]
         qh = float(q_hi.get(bname, np.nan))
         qv = float(q_vhi.get(bname, np.nan))
@@ -130,20 +125,39 @@ def plot_dual_panel(
         ax.set_yticks([])
         ax.set_ylabel(_truncate(bname, 34), fontsize=8, rotation=0, ha="right", va="center")
         ax.grid(axis="x", alpha=0.25)
-        if i == 0:
-            ax.set_title("(b) Behavior scores " + r"$D_{ik}$" + " vs normal quantiles")
         if i == n_b - 1:
             ax.set_xlabel(r"Behavior deviation score (same units as $|x-\mu|$ within $G_k$)")
 
     h_q90 = plt.Line2D([0], [0], color="darkorange", linestyle="--", linewidth=1.5, label=r"$q_k^{(0.90)}$ (normal)")
     h_q99 = plt.Line2D([0], [0], color="crimson", linestyle="--", linewidth=1.5, label=r"$q_k^{(0.99)}$ (normal)")
     h_d = plt.Rectangle((0, 0), 1, 1, fc="darkseagreen", label=r"$D_{ik}$")
-    fig.legend(handles=[h_d, h_q90, h_q99], loc="upper center", ncol=3, bbox_to_anchor=(0.55, 0.02), fontsize=8)
+    fig.legend(handles=[h_d, h_q90, h_q99], loc="upper center", ncol=3, bbox_to_anchor=(0.5, 0.02), fontsize=8)
 
-    fig.suptitle(f"{title_prefix} | label={lbl} | row_index={row_index}", fontsize=11, y=1.01)
     fig.tight_layout(rect=[0, 0.06, 1, 0.98])
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
+
+
+def plot_dual_separate(
+    out_a: Path,
+    out_b: Path,
+    X_all: pd.DataFrame,
+    mu: pd.Series,
+    q_hi: pd.Series,
+    q_vhi: pd.Series,
+    groups: Mapping[str, List[str]],
+    row_index: int,
+    top_k: int,
+) -> None:
+    if row_index not in X_all.index:
+        raise ValueError(f"row_index {row_index} not in processed frame index.")
+
+    row = X_all.loc[row_index]
+    dev = bde.feature_deviations_row(row, mu)
+    scores = bde.behavior_scores_from_deviations(dev, groups)
+
+    plot_panel_a(out_a, dev, top_k)
+    plot_panel_b(out_b, scores, q_hi, q_vhi)
 
 
 def plot_heatmap_pair(
@@ -229,7 +243,7 @@ def plot_heatmap_pair(
 
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Plot feature vs behavior deviation figures")
-    p.add_argument("--mode", choices=("dual", "heatmap", "both"), default="both")
+    p.add_argument("--mode", choices=("dual", "heatmap", "both"), default="dual")
     p.add_argument("--dataset", choices=("nsl_kdd", "netml"), default="nsl_kdd", help="Used for dual panel only")
     p.add_argument("--nsl-path", type=Path, default=_DEFAULT_NSL)
     p.add_argument("--netml-path", type=Path, default=_DEFAULT_NETML)
@@ -271,9 +285,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             rng = np.random.default_rng(args.seed)
             rid = int(rng.choice(anomaly_idx.to_numpy(), size=1)[0])
 
-        out = args.out_dir / f"{args.prefix}_dual_{args.dataset}_row{rid}_{stamp}.png"
-        plot_dual_panel(out, X_all, df_w, mu, q_hi, q_vhi, groups, rid, args.top_k, args.dataset)
-        print(f"Wrote {out}", file=sys.stderr)
+        base = f"{args.prefix}_dual_{args.dataset}_row{rid}_{stamp}"
+        out_a = args.out_dir / f"{base}_a.png"
+        out_b = args.out_dir / f"{base}_b.png"
+        plot_dual_separate(out_a, out_b, X_all, mu, q_hi, q_vhi, groups, rid, args.top_k)
+        print(f"Wrote {out_a}", file=sys.stderr)
+        print(f"Wrote {out_b}", file=sys.stderr)
 
     if args.mode in ("heatmap", "both"):
         out = args.out_dir / f"{args.prefix}_heatmap_{args.heatmap_mode}_seed{args.seed}_n{args.anomaly_samples}_{stamp}.png"

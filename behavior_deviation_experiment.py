@@ -9,7 +9,7 @@ import sys
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterator, List, Mapping, Optional, Sequence, TextIO, Tuple
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, TextIO, Tuple
 
 import numpy as np
 import pandas as pd
@@ -216,6 +216,26 @@ def format_behavior_explanation(
     return "\n".join(lines)
 
 
+def count_elevated_behaviors(
+    bscores: Mapping[str, float],
+    q_hi: pd.Series,
+    q_vhi: pd.Series,
+) -> int:
+    """Number of behavior groups with ↑ or ↑↑ for this row."""
+    n = 0
+    for bname, sc in bscores.items():
+        qh = float(q_hi.get(bname, np.nan))
+        qv = float(q_vhi.get(bname, np.nan))
+        if not np.isfinite(qh):
+            qh = np.inf
+        if not np.isfinite(qv):
+            qv = np.inf
+        sym = label_behavior_level(sc, qh, qv)
+        if sym in ("↑", "↑↑"):
+            n += 1
+    return n
+
+
 def run_experiment(
     df: pd.DataFrame,
     groups: Mapping[str, List[str]],
@@ -223,7 +243,8 @@ def run_experiment(
     anomaly_sample_limit: int = 5,
     random_state: int = 42,
     anomaly_indices: Optional[np.ndarray] = None,
-) -> None:
+    quiet: bool = False,
+) -> Optional[List[Tuple[Any, int]]]:
     feature_cols = numeric_feature_columns(df)
     grouped_feats = set()
     for fs in groups.values():
@@ -262,6 +283,15 @@ def run_experiment(
         pick_n = min(anomaly_sample_limit, len(anomaly_idx))
         chosen = rng.choice(anomaly_idx.to_numpy(), size=pick_n, replace=False)
 
+    if quiet:
+        out: List[Tuple[Any, int]] = []
+        for idx in chosen:
+            row = X_all.loc[idx]
+            dev = feature_deviations_row(row, mu)
+            bscores = behavior_scores_from_deviations(dev, groups)
+            out.append((idx, count_elevated_behaviors(bscores, q_hi, q_vhi)))
+        return out
+
     print("=== 정상 기준: feature 평균(일부) ===")
     print(mu.head(12).to_string())
     print("\n=== Behavior score 분위수 (정상 분포 기준) ===")
@@ -279,6 +309,7 @@ def run_experiment(
         print(" ", format_feature_explanation(dev))
         print("Proposed (behavior deviation):")
         print(format_behavior_explanation(bscores, q_hi, q_vhi))
+    return None
 
 
 def default_netml_normal_predicate() -> callable:

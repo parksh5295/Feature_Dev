@@ -1,0 +1,60 @@
+# grouping_ablation_experiment
+# dataset(s)=nsl_kdd
+# scope=all
+# seed=42
+# anomaly_samples(used when scope=sample)=5
+# time=2026-04-10T17:26:02
+
+Variants:
+  coarse: fewer, merged behavior groups
+  baseline: current NSL config / NetML regex rules
+  fine: more groups (NSL splits rates/volume; NetML splits timing)
+
+# nsl_path=C:\Feature_Dev\Dataset\KDDTest.csv rows=22544
+
+========================================================================
+# Dataset: nsl_kdd
+# slice: __all__
+# anomaly rows: n=12833 (indices omitted in header)
+========================================================================
+
+### Variant: coarse (3 behavior groups, 38 features mapped)
+### Group -> features:
+  - Connection and protocol: 19 features
+  - Host access / shell: 14 features
+  - Volume and timing: 5 features
+
+(quiet: per-sample stdout omitted)
+
+### Variant: baseline (5 behavior groups, 38 features mapped)
+### Group -> features:
+  - Connection intensity: 6 features
+  - Data volume: 4 features
+  - Host access / shell: 14 features
+  - Protocol / error rates: 13 features
+  - Timing pattern: 1 features
+
+(quiet: per-sample stdout omitted)
+
+### Variant: fine (7 behavior groups, 38 features mapped)
+### Group -> features:
+  - Byte volume: 2 features
+  - Connection intensity: 6 features
+  - Error rates: 8 features
+  - Host access / shell: 14 features
+  - Packet-level signals: 2 features
+  - Service / diversity rates: 5 features
+  - Timing (duration): 1 features
+
+(quiet: per-sample stdout omitted)
+
+========================================================================
+# COMPARISON (same rows across variants)
+# n_elevated = count of behavior groups with ↑ or ↑↑ for that sample.
+========================================================================
+
+# AGGREGATE (n_elevated)
+  coarse        n=12833  mean=1.50518  std=0.683653  median=2
+  baseline      n=12833  mean=3.16154  std=1.13481  median=3
+  fine          n=12833  mean=4.77176  std=1.34283  median=5
+  spread(max-min)  mean=3.26658  median=3

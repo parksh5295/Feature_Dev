@@ -2,9 +2,14 @@
 """
 Plot grouping ablation summaries from CSV (preferred) or parsed .log files.
 
+Supports:
+  - sample scope: grouped bars + spread scatter (few rows).
+  - scope=all / by_label: boxplot of n_elevated, spread histogram, mean bars,
+    optional heatmap (attack_label × variant).
+
 Example:
   python plot_grouping_ablation.py --csv results/grouping_ablation_both_seed42_anom5_20260406_074720.csv
-  python plot_grouping_ablation.py --log results/grouping_ablation_both_seed42_anom5_20260406_074720.log
+  python plot_grouping_ablation.py --csv results/grouping_ablation_nsl_kdd_scope-all_seed42_....csv --style aggregate
 """
 
 from __future__ import annotations
@@ -94,6 +99,125 @@ def load_table(csv_path: Optional[Path], log_path: Optional[Path]) -> pd.DataFra
     raise ValueError("Provide --csv or --log")
 
 
+_VARIANT_ORDER = ["coarse", "baseline", "fine"]
+
+
+def _should_use_aggregate(df: pd.DataFrame) -> bool:
+    if len(df) > 400:
+        return True
+    if "slice_key" in df.columns:
+        sk = df["slice_key"].astype(str)
+        if sk.eq("__all__").all():
+            return True
+    if "attack_label" in df.columns and df["attack_label"].nunique() > 3 and len(df) > 500:
+        return True
+    return False
+
+
+def plot_aggregate_figures(df: pd.DataFrame, out_base: Path, heatmap_top: int = 32) -> List[Path]:
+    """Figures for scope=all / by_label CSVs (many rows). Returns paths written."""
+    df = df.copy()
+    df["variant"] = pd.Categorical(df["variant"], categories=_VARIANT_ORDER, ordered=True)
+    written: List[Path] = []
+    has_ds = "dataset" in df.columns
+    datasets = df["dataset"].unique().tolist() if has_ds else ["_"]
+
+    for ds in datasets:
+        sub = df[df["dataset"] == ds] if has_ds else df
+        tag = f"{ds}_" if has_ds else ""
+
+        # --- Boxplot: n_elevated by variant
+        fig, ax = plt.subplots(figsize=(7, 4.5))
+        data = [sub[sub["variant"] == v]["n_elevated"].dropna().to_numpy() for v in _VARIANT_ORDER]
+        try:
+            bp = ax.boxplot(data, tick_labels=_VARIANT_ORDER, patch_artist=True)
+        except TypeError:
+            bp = ax.boxplot(data, labels=_VARIANT_ORDER, patch_artist=True)
+        for p in bp["boxes"]:
+            p.set(facecolor="lightsteelblue", alpha=0.85)
+        ax.set_ylabel("n_elevated")
+        ax.set_xlabel("grouping variant")
+        ax.grid(axis="y", alpha=0.3)
+        ax.set_title(f"n_elevated distribution ({ds})" if has_ds else "n_elevated distribution")
+        fig.tight_layout()
+        pth = Path(str(out_base) + f"_{tag}agg_box.png")
+        fig.savefig(pth, dpi=150)
+        plt.close(fig)
+        written.append(pth)
+
+        # --- Histogram: spread (one value per anomaly row)
+        sp = sub.drop_duplicates(subset=["row_index"], keep="first")
+        spreads = sp["spread"].dropna().to_numpy()
+        fig, ax = plt.subplots(figsize=(7, 4))
+        if len(spreads) > 0:
+            ax.hist(spreads, bins=min(40, max(10, int(np.sqrt(len(spreads))))), color="coral", edgecolor="white")
+        ax.set_xlabel("spread (max n_elevated − min across variants)")
+        ax.set_ylabel("count (anomaly rows)")
+        ax.grid(axis="y", alpha=0.3)
+        ax.set_title(f"Spread distribution ({ds})" if has_ds else "Spread distribution")
+        fig.tight_layout()
+        pth = Path(str(out_base) + f"_{tag}agg_spread_hist.png")
+        fig.savefig(pth, dpi=150)
+        plt.close(fig)
+        written.append(pth)
+
+        # --- Mean ± std bars per variant
+        g = sub.groupby("variant", observed=True)["n_elevated"]
+        means = g.mean().reindex(_VARIANT_ORDER)
+        stds = g.std().reindex(_VARIANT_ORDER).fillna(0)
+        fig, ax = plt.subplots(figsize=(6.5, 4))
+        x = np.arange(len(_VARIANT_ORDER))
+        ax.bar(x, means, yerr=stds, capsize=4, color="seagreen", alpha=0.85, ecolor="dimgray")
+        ax.set_xticks(x)
+        ax.set_xticklabels(_VARIANT_ORDER)
+        ax.set_ylabel("mean n_elevated ± std")
+        ax.grid(axis="y", alpha=0.3)
+        ax.set_title(f"Mean n_elevated by grouping ({ds})" if has_ds else "Mean n_elevated by grouping")
+        fig.tight_layout()
+        pth = Path(str(out_base) + f"_{tag}agg_mean_bars.png")
+        fig.savefig(pth, dpi=150)
+        plt.close(fig)
+        written.append(pth)
+
+        # --- Heatmap: attack_label × variant (mean n_elevated)
+        if "attack_label" not in sub.columns:
+            continue
+        n_att = sub["attack_label"].nunique()
+        if n_att < 2:
+            continue
+        counts = (
+            sub.groupby("attack_label", observed=True)["row_index"].nunique().sort_values(ascending=False)
+        )
+        top_idx = counts.head(heatmap_top).index
+        sub_top = sub[sub["attack_label"].isin(top_idx)]
+        pv = sub_top.pivot_table(
+            index="attack_label",
+            columns="variant",
+            values="n_elevated",
+            aggfunc="mean",
+            observed=False,
+        )
+        pv = pv.reindex(columns=[c for c in _VARIANT_ORDER if c in pv.columns])
+        pv = pv.reindex(index=[i for i in counts.index if i in pv.index])
+
+        fig, ax = plt.subplots(figsize=(8, max(5, 0.22 * len(pv.index))))
+        im = ax.imshow(pv.values, aspect="auto", cmap="YlOrRd")
+        ax.set_xticks(np.arange(len(pv.columns)))
+        ax.set_xticklabels(list(pv.columns), rotation=0)
+        ax.set_yticks(np.arange(len(pv.index)))
+        ax.set_yticklabels([str(i)[:28] for i in pv.index], fontsize=7)
+        ax.set_xlabel("grouping variant")
+        ax.set_ylabel("attack_label (top by row count)")
+        fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02, label="mean n_elevated")
+        fig.tight_layout()
+        pth = Path(str(out_base) + f"_{tag}agg_attack_heatmap.png")
+        fig.savefig(pth, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        written.append(pth)
+
+    return written
+
+
 def plot_grouped_bars(df: pd.DataFrame, out_path: Path, title: str = "") -> None:
     """Grouped bars: x = sample_order, hue = variant, facet by dataset."""
     df = df.copy()
@@ -149,13 +273,28 @@ def plot_spread_scatter(df: pd.DataFrame, out_path: Path, title: str = "") -> No
     plt.close(fig)
 
 
+def _can_sample_plot(df: pd.DataFrame) -> bool:
+    if "sample_order" not in df.columns:
+        return False
+    if len(df) > 3000:
+        return False
+    return int(df["sample_order"].nunique()) <= 50
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Plot grouping ablation CSV or log")
     src = p.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv", type=Path, help="CSV from grouping_ablation_experiment.py")
     src.add_argument("--log", type=Path, help="grouping_ablation .log (parsed)")
     p.add_argument("--out-dir", type=Path, default=None, help="Default: same dir as input")
-    p.add_argument("--prefix", type=str, default="figure", help="Output filename prefix")
+    p.add_argument("--prefix", type=str, default="fig", help="Output filename prefix")
+    p.add_argument(
+        "--style",
+        choices=("auto", "aggregate", "sample", "both"),
+        default="auto",
+        help="aggregate: box/hist/mean/heatmap (large CSV); sample: per-sample bars",
+    )
+    p.add_argument("--heatmap-top", type=int, default=32, help="Top attack labels by count in heatmap")
     args = p.parse_args(argv)
 
     inp = args.csv or args.log
@@ -171,11 +310,38 @@ def main(argv: Optional[List[str]] = None) -> int:
     df = load_table(args.csv, args.log)
     base = out_dir / f"{args.prefix}_{stem}"
 
-    plot_grouped_bars(df, Path(str(base) + "_n_elevated.png"))
-    plot_spread_scatter(df, Path(str(base) + "_spread.png"))
+    style = args.style
+    if style == "auto":
+        style = "aggregate" if _should_use_aggregate(df) else "sample"
 
-    print(f"Wrote {base}_n_elevated.png", file=sys.stderr)
-    print(f"Wrote {base}_spread.png", file=sys.stderr)
+    written: List[str] = []
+
+    if style in ("aggregate", "both"):
+        paths = plot_aggregate_figures(df, base, heatmap_top=args.heatmap_top)
+        for pth in paths:
+            written.append(str(pth))
+            print(f"Wrote {pth}", file=sys.stderr)
+
+    if style in ("sample", "both"):
+        if not _can_sample_plot(df):
+            if style == "sample":
+                print(
+                    "CSV is too large for sample-style plots; use --style aggregate",
+                    file=sys.stderr,
+                )
+                return 1
+        else:
+            p1 = Path(str(base) + "_n_elevated.png")
+            p2 = Path(str(base) + "_spread.png")
+            plot_grouped_bars(df, p1)
+            plot_spread_scatter(df, p2)
+            written.extend([str(p1), str(p2)])
+            print(f"Wrote {p1}", file=sys.stderr)
+            print(f"Wrote {p2}", file=sys.stderr)
+
+    if not written:
+        print("No figures written.", file=sys.stderr)
+        return 1
     return 0
 
 

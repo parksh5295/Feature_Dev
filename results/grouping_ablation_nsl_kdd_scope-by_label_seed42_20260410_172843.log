@@ -1,0 +1,288 @@
+# grouping_ablation_experiment
+# dataset(s)=nsl_kdd
+# scope=by_label
+# seed=42
+# anomaly_samples(used when scope=sample)=5
+# time=2026-04-10T17:28:43
+
+Variants:
+  coarse: fewer, merged behavior groups
+  baseline: current NSL config / NetML regex rules
+  fine: more groups (NSL splits rates/volume; NetML splits timing)
+
+# nsl_path=C:\Feature_Dev\Dataset\KDDTest.csv rows=22544
+# NSL-KDD by_label: single pass over all anomalies; slice_key column = attack label
+
+========================================================================
+# Dataset: nsl_kdd
+# slice: by_label
+# slice_key per row = normalized attack label (by_label mode)
+# anomaly rows: n=12833 (indices omitted in header)
+========================================================================
+
+### Variant: coarse (3 behavior groups, 38 features mapped)
+### Group -> features:
+  - Connection and protocol: 19 features
+  - Host access / shell: 14 features
+  - Volume and timing: 5 features
+
+(quiet: per-sample stdout omitted)
+
+### Variant: baseline (5 behavior groups, 38 features mapped)
+### Group -> features:
+  - Connection intensity: 6 features
+  - Data volume: 4 features
+  - Host access / shell: 14 features
+  - Protocol / error rates: 13 features
+  - Timing pattern: 1 features
+
+(quiet: per-sample stdout omitted)
+
+### Variant: fine (7 behavior groups, 38 features mapped)
+### Group -> features:
+  - Byte volume: 2 features
+  - Connection intensity: 6 features
+  - Error rates: 8 features
+  - Host access / shell: 14 features
+  - Packet-level signals: 2 features
+  - Service / diversity rates: 5 features
+  - Timing (duration): 1 features
+
+(quiet: per-sample stdout omitted)
+
+========================================================================
+# COMPARISON (same rows across variants)
+# n_elevated = count of behavior groups with ↑ or ↑↑ for that sample.
+========================================================================
+
+# AGGREGATE (n_elevated)
+  coarse        n=12833  mean=1.50518  std=0.683653  median=2
+  baseline      n=12833  mean=3.16154  std=1.13481  median=3
+  fine          n=12833  mean=4.77176  std=1.34283  median=5
+  spread(max-min)  mean=3.26658  median=3
+
+========================================================================
+# PER-LABEL AGGREGATES (single pass over all anomalies; grouped by attack_label)
+========================================================================
+
+## attack_label=apache2  (n≈737 anomaly rows)
+  baseline      n=737  mean=2.95387  std=0.234221  median=3
+  coarse        n=737  mean=0.957938  std=0.200732  median=1
+  fine          n=737  mean=3.95387  std=0.234221  median=4
+  spread(max-min)  mean=2.99593  median=3
+
+## attack_label=back  (n≈359 anomaly rows)
+  baseline      n=359  mean=3.10028  std=0.367139  median=3
+  coarse        n=359  mean=1.98329  std=0.128194  median=2
+  fine          n=359  mean=4.74652  std=0.447628  median=5
+  spread(max-min)  mean=2.76323  median=3
+
+## attack_label=buffer_overflow  (n≈20 anomaly rows)
+  baseline      n=20  mean=3  std=1.09545  median=3
+  coarse        n=20  mean=1.75  std=0.622495  median=2
+  fine          n=20  mean=4.35  std=1.35185  median=5
+  spread(max-min)  mean=2.6  median=3
+
+## attack_label=ftp_write  (n≈3 anomaly rows)
+  baseline      n=3  mean=2  std=0  median=2
+  coarse        n=3  mean=1  std=0  median=1
+  fine          n=3  mean=4  std=0  median=4
+  spread(max-min)  mean=3  median=3
+
+## attack_label=guess_passwd  (n≈1231 anomaly rows)
+  baseline      n=1231  mean=0.941511  std=1.05717  median=0
+  coarse        n=1231  mean=0.437043  std=0.529297  median=0
+  fine          n=1231  mean=2.37368  std=1.07709  median=2
+  spread(max-min)  mean=1.93664  median=2
+
+## attack_label=httptunnel  (n≈133 anomaly rows)
+  baseline      n=133  mean=3.10526  std=0.352503  median=3
+  coarse        n=133  mean=1.15789  std=0.364642  median=1
+  fine          n=133  mean=4.8797  std=0.575667  median=5
+  spread(max-min)  mean=3.7218  median=4
+
+## attack_label=imap  (n≈1 anomaly rows)
+  baseline      n=1  mean=3  std=0  median=3
+  coarse        n=1  mean=2  std=0  median=2
+  fine          n=1  mean=5  std=0  median=5
+  spread(max-min)  mean=3  median=3
+
+## attack_label=ipsweep  (n≈141 anomaly rows)
+  baseline      n=141  mean=3.43262  std=0.49544  median=3
+  coarse        n=141  mean=1.42553  std=0.494423  median=1
+  fine          n=141  mean=4.43262  std=0.49544  median=4
+  spread(max-min)  mean=3.00709  median=3
+
+## attack_label=land  (n≈7 anomaly rows)
+  baseline      n=7  mean=4  std=0  median=4
+  coarse        n=7  mean=2  std=0  median=2
+  fine          n=7  mean=6  std=0  median=6
+  spread(max-min)  mean=4  median=4
+
+## attack_label=loadmodule  (n≈2 anomaly rows)
+  baseline      n=2  mean=2.5  std=0.5  median=2.5
+  coarse        n=2  mean=1.5  std=0.5  median=1.5
+  fine          n=2  mean=4  std=1  median=4
+  spread(max-min)  mean=2.5  median=2.5
+
+## attack_label=mailbomb  (n≈293 anomaly rows)
+  baseline      n=293  mean=0.569966  std=0.501927  median=1
+  coarse        n=293  mean=0.00341297  std=0.0583208  median=0
+  fine          n=293  mean=2.20137  std=0.557663  median=2
+  spread(max-min)  mean=2.19795  median=2
+
+## attack_label=mscan  (n≈996 anomaly rows)
+  baseline      n=996  mean=2.64157  std=0.629782  median=3
+  coarse        n=996  mean=0.896586  std=0.380694  median=1
+  fine          n=996  mean=4.30622  std=0.677819  median=4
+  spread(max-min)  mean=3.40964  median=3
+
+## attack_label=multihop  (n≈18 anomaly rows)
+  baseline      n=18  mean=3.38889  std=0.890623  median=3
+  coarse        n=18  mean=1.94444  std=0.52411  median=2
+  fine          n=18  mean=4.44444  std=0.895806  median=4.5
+  spread(max-min)  mean=2.5  median=2.5
+
+## attack_label=named  (n≈17 anomaly rows)
+  baseline      n=17  mean=4.23529  std=0.545507  median=4
+  coarse        n=17  mean=2.29412  std=0.455645  median=2
+  fine          n=17  mean=5.64706  std=0.76244  median=6
+  spread(max-min)  mean=3.35294  median=3
+
+## attack_label=neptune  (n≈4657 anomaly rows)
+  baseline      n=4657  mean=3.93365  std=0.248896  median=4
+  coarse        n=4657  mean=1.93665  std=0.243583  median=2
+  fine          n=4657  mean=5.92076  std=0.313521  median=6
+  spread(max-min)  mean=3.98411  median=4
+
+## attack_label=nmap  (n≈73 anomaly rows)
+  baseline      n=73  mean=3.30137  std=0.458853  median=3
+  coarse        n=73  mean=1.32877  std=0.469765  median=1
+  fine          n=73  mean=5.30137  std=0.458853  median=5
+  spread(max-min)  mean=3.9726  median=4
+
+## attack_label=perl  (n≈2 anomaly rows)
+  baseline      n=2  mean=2.5  std=0.5  median=2.5
+  coarse        n=2  mean=1.5  std=0.5  median=1.5
+  fine          n=2  mean=4.5  std=0.5  median=4.5
+  spread(max-min)  mean=3  median=3
+
+## attack_label=phf  (n≈2 anomaly rows)
+  baseline      n=2  mean=3  std=1  median=3
+  coarse        n=2  mean=1.5  std=0.5  median=1.5
+  fine          n=2  mean=4  std=1  median=4
+  spread(max-min)  mean=2.5  median=2.5
+
+## attack_label=pod  (n≈41 anomaly rows)
+  baseline      n=41  mean=3.82927  std=0.376274  median=4
+  coarse        n=41  mean=1.82927  std=0.376274  median=2
+  fine          n=41  mean=5  std=0.541002  median=5
+  spread(max-min)  mean=3.17073  median=3
+
+## attack_label=portsweep  (n≈157 anomaly rows)
+  baseline      n=157  mean=3.84713  std=0.359859  median=4
+  coarse        n=157  mean=1.84713  std=0.359859  median=2
+  fine          n=157  mean=5.84713  std=0.359859  median=6
+  spread(max-min)  mean=4  median=4
+
+## attack_label=processtable  (n≈685 anomaly rows)
+  baseline      n=685  mean=2.85401  std=0.361266  median=3
+  coarse        n=685  mean=1.68759  std=0.469733  median=2
+  fine          n=685  mean=4.19562  std=0.403971  median=4
+  spread(max-min)  mean=2.50803  median=2
+
+## attack_label=ps  (n≈15 anomaly rows)
+  baseline      n=15  mean=2.26667  std=0.997775  median=2
+  coarse        n=15  mean=1.33333  std=0.471405  median=1
+  fine          n=15  mean=3.53333  std=1.02415  median=4
+  spread(max-min)  mean=2.2  median=2
+
+## attack_label=rootkit  (n≈13 anomaly rows)
+  baseline      n=13  mean=2.92308  std=0.997037  median=3
+  coarse        n=13  mean=1.53846  std=0.84265  median=1
+  fine          n=13  mean=4.23077  std=1.36741  median=4
+  spread(max-min)  mean=2.69231  median=3
+
+## attack_label=saint  (n≈319 anomaly rows)
+  baseline      n=319  mean=3.64577  std=0.497554  median=4
+  coarse        n=319  mean=1.68025  std=0.473053  median=2
+  fine          n=319  mean=5.30408  std=0.894961  median=6
+  spread(max-min)  mean=3.62382  median=4
+
+## attack_label=satan  (n≈735 anomaly rows)
+  baseline      n=735  mean=3.82449  std=0.39445  median=4
+  coarse        n=735  mean=1.83537  std=0.374493  median=2
+  fine          n=735  mean=5.48571  std=0.681734  median=6
+  spread(max-min)  mean=3.65034  median=4
+
+## attack_label=sendmail  (n≈14 anomaly rows)
+  baseline      n=14  mean=3.14286  std=0.914732  median=3
+  coarse        n=14  mean=1.78571  std=0.673856  median=2
+  fine          n=14  mean=4.21429  std=0.939496  median=4.5
+  spread(max-min)  mean=2.42857  median=2.5
+
+## attack_label=smurf  (n≈665 anomaly rows)
+  baseline      n=665  mean=3.60451  std=0.498096  median=4
+  coarse        n=665  mean=1.71128  std=0.453168  median=2
+  fine          n=665  mean=4.64962  std=0.50763  median=5
+  spread(max-min)  mean=2.93835  median=3
+
+## attack_label=snmpgetattack  (n≈178 anomaly rows)
+  baseline      n=178  mean=2.23034  std=0.505899  median=2
+  coarse        n=178  mean=1.08989  std=0.322924  median=1
+  fine          n=178  mean=3.23596  std=0.508854  median=3
+  spread(max-min)  mean=2.14607  median=2
+
+## attack_label=snmpguess  (n≈331 anomaly rows)
+  baseline      n=331  mean=2.02719  std=0.211135  median=2
+  coarse        n=331  mean=1.01208  std=0.109264  median=1
+  fine          n=331  mean=3.03927  std=0.236346  median=3
+  spread(max-min)  mean=2.02719  median=2
+
+## attack_label=sqlattack  (n≈2 anomaly rows)
+  baseline      n=2  mean=1.5  std=0.5  median=1.5
+  coarse        n=2  mean=1  std=0  median=1
+  fine          n=2  mean=3  std=0  median=3
+  spread(max-min)  mean=2  median=2
+
+## attack_label=teardrop  (n≈12 anomaly rows)
+  baseline      n=12  mean=2.83333  std=0.897527  median=2.5
+  coarse        n=12  mean=1.33333  std=0.471405  median=1
+  fine          n=12  mean=4  std=1.08012  median=3.5
+  spread(max-min)  mean=2.66667  median=2.5
+
+## attack_label=udpstorm  (n≈2 anomaly rows)
+  baseline      n=2  mean=3.5  std=0.5  median=3.5
+  coarse        n=2  mean=1.5  std=0.5  median=1.5
+  fine          n=2  mean=5  std=0  median=5
+  spread(max-min)  mean=3.5  median=3.5
+
+## attack_label=warezmaster  (n≈944 anomaly rows)
+  baseline      n=944  mean=3.39619  std=1.06157  median=3
+  coarse        n=944  mean=1.73517  std=0.780993  median=2
+  fine          n=944  mean=4.68538  std=1.05242  median=5
+  spread(max-min)  mean=2.95021  median=3
+
+## attack_label=worm  (n≈2 anomaly rows)
+  baseline      n=2  mean=1  std=0  median=1
+  coarse        n=2  mean=0  std=0  median=0
+  fine          n=2  mean=2  std=0  median=2
+  spread(max-min)  mean=2  median=2
+
+## attack_label=xlock  (n≈9 anomaly rows)
+  baseline      n=9  mean=4.22222  std=1.22726  median=5
+  coarse        n=9  mean=2.44444  std=0.684935  median=3
+  fine          n=9  mean=5.33333  std=1.33333  median=6
+  spread(max-min)  mean=2.88889  median=3
+
+## attack_label=xsnoop  (n≈4 anomaly rows)
+  baseline      n=4  mean=4  std=1  median=4
+  coarse        n=4  mean=2.25  std=0.829156  median=2.5
+  fine          n=4  mean=5.25  std=1.29904  median=5
+  spread(max-min)  mean=3  median=3
+
+## attack_label=xterm  (n≈13 anomaly rows)
+  baseline      n=13  mean=3.46154  std=0.745797  median=3
+  coarse        n=13  mean=2.30769  std=0.461538  median=2
+  fine          n=13  mean=4.53846  std=0.745797  median=5
+  spread(max-min)  mean=2.23077  median=2
