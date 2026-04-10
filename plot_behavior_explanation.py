@@ -8,6 +8,8 @@ Visualize feature-level vs behavior-level deviation for the proposed method.
 Example:
   python plot_behavior_explanation.py --mode dual --dataset nsl_kdd --row-index 17423
   # writes ..._row{id}_label_{name}_k{topk}_a.png (stable name; no date if same settings)
+  # use --dual-label-tag nonnormal for ..._label_nonnormal_... filenames
+  # heatmap: ..._heatmap_{mode}_seed{seed}_n{n}_nonnormal.png or ..._label_{attack}.png
   python plot_behavior_explanation.py --mode heatmap --seed 42 --anomaly-samples 5
   python plot_behavior_explanation.py --mode heatmap --heatmap-attack-label ipsweep --seed 42 --anomaly-samples 5
 """
@@ -32,6 +34,12 @@ _ROOT = Path(__file__).resolve().parent
 _DEFAULT_NSL = _ROOT / "Dataset" / "KDDTest.csv"
 _DEFAULT_NETML = _ROOT / "Dataset" / "netML_dataset.csv"
 _RESULTS = _ROOT / "results"
+
+# create_conditions_graph.py: axis labels, ticks, legend share one fontsize (40).
+# Same policy (single size everywhere); ~15pt reads well at typical paper column width @ 200 dpi.
+FIG_FONT_FAMILY = "Times New Roman"
+FIG_FONT_PT = 15
+FIG_SAVE_DPI = 200
 
 
 def _netml_baseline_groups(df: pd.DataFrame) -> Dict[str, List[str]]:
@@ -132,19 +140,21 @@ def plot_panel_a(
     dev: pd.Series,
     top_k: int,
 ) -> None:
-    top = dev.sort_values(ascending=False).head(top_k)
-    n = len(top)
-    fig, ax = plt.subplots(figsize=(7.0, max(3.2, 0.45 * n)))
-    y_pos = np.arange(n)
-    ax.barh(y_pos, top.values, color="steelblue")
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels([_truncate(str(i)) for i in top.index])
-    ax.invert_yaxis()
-    ax.set_xlabel(r"Feature deviation $|x_{ij}-\mu_j|$")
-    ax.grid(axis="x", alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    with plt.rc_context({"font.family": FIG_FONT_FAMILY}):
+        top = dev.sort_values(ascending=False).head(top_k)
+        n = len(top)
+        fig, ax = plt.subplots(figsize=(7.8, max(3.8, 0.58 * n)))
+        y_pos = np.arange(n)
+        ax.barh(y_pos, top.values, height=0.72, color="steelblue")
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels([_truncate(str(i)) for i in top.index], fontsize=FIG_FONT_PT)
+        ax.invert_yaxis()
+        ax.set_xlabel(r"Feature deviation $|x_{ij}-\mu_j|$", fontsize=FIG_FONT_PT)
+        ax.tick_params(axis="x", labelsize=FIG_FONT_PT)
+        ax.grid(axis="x", alpha=0.3)
+        fig.tight_layout()
+        fig.savefig(out_path, dpi=FIG_SAVE_DPI, bbox_inches="tight")
+        plt.close(fig)
 
 
 def plot_panel_b(
@@ -153,38 +163,58 @@ def plot_panel_b(
     q_hi: pd.Series,
     q_vhi: pd.Series,
 ) -> None:
-    beh_names = sorted(scores.keys())
-    n_b = len(beh_names)
-    fig = plt.figure(figsize=(10, max(4.0, 0.55 * n_b)))
-    gs = gridspec.GridSpec(n_b, 1, figure=fig, hspace=0.4)
+    with plt.rc_context({"font.family": FIG_FONT_FAMILY}):
+        beh_names = sorted(scores.keys())
+        n_b = len(beh_names)
+        fig = plt.figure(figsize=(10.8, max(5.0, 0.74 * n_b)))
+        gs = gridspec.GridSpec(n_b, 1, figure=fig, hspace=0.62)
 
-    for i, bname in enumerate(beh_names):
-        ax = fig.add_subplot(gs[i, 0])
-        D = scores[bname]
-        qh = float(q_hi.get(bname, np.nan))
-        qv = float(q_vhi.get(bname, np.nan))
-        xmax = max(D, qh if np.isfinite(qh) else 0, qv if np.isfinite(qv) else 0) * 1.15
-        xmax = max(xmax, 1e-12)
-        ax.barh([0], [D], height=0.5, color="darkseagreen")
-        if np.isfinite(qh):
-            ax.axvline(qh, color="darkorange", linestyle="--", linewidth=1.5)
-        if np.isfinite(qv):
-            ax.axvline(qv, color="crimson", linestyle="--", linewidth=1.5)
-        ax.set_xlim(0, xmax)
-        ax.set_yticks([])
-        ax.set_ylabel(_truncate(bname, 34), fontsize=8, rotation=0, ha="right", va="center")
-        ax.grid(axis="x", alpha=0.25)
-        if i == n_b - 1:
-            ax.set_xlabel(r"Behavior deviation score (same units as $|x-\mu|$ within $G_k$)")
+        for i, bname in enumerate(beh_names):
+            ax = fig.add_subplot(gs[i, 0])
+            D = scores[bname]
+            qh = float(q_hi.get(bname, np.nan))
+            qv = float(q_vhi.get(bname, np.nan))
+            xmax = max(D, qh if np.isfinite(qh) else 0, qv if np.isfinite(qv) else 0) * 1.15
+            xmax = max(xmax, 1e-12)
+            ax.barh([0], [D], height=0.5, color="darkseagreen")
+            if np.isfinite(qh):
+                ax.axvline(qh, color="darkorange", linestyle="--", linewidth=2.0)
+            if np.isfinite(qv):
+                ax.axvline(qv, color="crimson", linestyle="--", linewidth=2.0)
+            ax.set_xlim(0, xmax)
+            ax.set_yticks([])
+            ax.set_ylabel(
+                _truncate(bname, 34), fontsize=FIG_FONT_PT, rotation=0, ha="right", va="center"
+            )
+            ax.tick_params(axis="x", labelsize=FIG_FONT_PT)
+            ax.grid(axis="x", alpha=0.25)
+            if i == n_b - 1:
+                ax.set_xlabel(
+                    r"Behavior deviation score (same units as $|x-\mu|$ within $G_k$)",
+                    fontsize=FIG_FONT_PT,
+                    labelpad=12,
+                )
 
-    h_q90 = plt.Line2D([0], [0], color="darkorange", linestyle="--", linewidth=1.5, label=r"$q_k^{(0.90)}$ (normal)")
-    h_q99 = plt.Line2D([0], [0], color="crimson", linestyle="--", linewidth=1.5, label=r"$q_k^{(0.99)}$ (normal)")
-    h_d = plt.Rectangle((0, 0), 1, 1, fc="darkseagreen", label=r"$D_{ik}$")
-    fig.legend(handles=[h_d, h_q90, h_q99], loc="upper center", ncol=3, bbox_to_anchor=(0.5, 0.02), fontsize=8)
+        h_q90 = plt.Line2D(
+            [0], [0], color="darkorange", linestyle="--", linewidth=2.0, label=r"$q_k^{(0.90)}$ (normal)"
+        )
+        h_q99 = plt.Line2D(
+            [0], [0], color="crimson", linestyle="--", linewidth=2.0, label=r"$q_k^{(0.99)}$ (normal)"
+        )
+        h_d = plt.Rectangle((0, 0), 1, 1, fc="darkseagreen", label=r"$D_{ik}$")
+        # Figure coords: lower y = further down. Leave room above bbox for xlabel + bottom spine ticks.
+        fig.legend(
+            handles=[h_d, h_q90, h_q99],
+            loc="upper center",
+            ncol=3,
+            bbox_to_anchor=(0.5, -0.02),
+            fontsize=FIG_FONT_PT,
+            frameon=True,
+        )
 
-    fig.tight_layout(rect=[0, 0.06, 1, 0.98])
-    fig.savefig(out_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+        fig.tight_layout(rect=[0, 0.22, 1, 0.99])
+        fig.savefig(out_path, dpi=FIG_SAVE_DPI, bbox_inches="tight")
+        plt.close(fig)
 
 
 def plot_dual_separate(
@@ -274,54 +304,53 @@ def plot_heatmap_pair(
     df_nm, _, note_nm = one_dataset(netml_path, netml_load, _netml_baseline_groups, bde.default_netml_normal_predicate())
 
     h_each = max(3.2, 0.5 * n_anomaly)
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9.5, h_each * 2 + 0.8))
+    with plt.rc_context({"font.family": FIG_FONT_FAMILY, "font.size": FIG_FONT_PT}):
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9.5, h_each * 2 + 0.8))
 
-    if mode == "score":
-        # Per-panel vmax: a single huge NetML cell must not wash out NSL-KDD colors.
-        vmax_nsl = float(np.nanmax(df_nsl.values)) if np.isfinite(df_nsl.values.max()) else 1e-12
-        vmax_nm = float(np.nanmax(df_nm.values)) if np.isfinite(df_nm.values.max()) else 1e-12
-        vmax_nsl = max(vmax_nsl, 1e-12)
-        vmax_nm = max(vmax_nm, 1e-12)
-        im1 = ax1.imshow(df_nsl.values, aspect="auto", cmap="viridis", vmin=0, vmax=vmax_nsl)
-        im2 = ax2.imshow(df_nm.values, aspect="auto", cmap="viridis", vmin=0, vmax=vmax_nm)
-        fig.colorbar(im1, ax=ax1, fraction=0.035, pad=0.02, label=r"$D_{ik}$ (NSL scale)")
-        fig.colorbar(im2, ax=ax2, fraction=0.035, pad=0.02, label=r"$D_{ik}$ (NetML scale)")
-    else:
-        im1 = ax1.imshow(df_nsl.values, aspect="auto", cmap="OrRd", vmin=0, vmax=1)
-        im2 = ax2.imshow(df_nm.values, aspect="auto", cmap="OrRd", vmin=0, vmax=1)
-        fig.colorbar(im1, ax=ax1, fraction=0.035, pad=0.02, label="1 = elevated (↑/↑↑)")
-        fig.colorbar(im2, ax=ax2, fraction=0.035, pad=0.02, label="1 = elevated (↑/↑↑)")
+        if mode == "score":
+            vmax_nsl = float(np.nanmax(df_nsl.values)) if np.isfinite(df_nsl.values.max()) else 1e-12
+            vmax_nm = float(np.nanmax(df_nm.values)) if np.isfinite(df_nm.values.max()) else 1e-12
+            vmax_nsl = max(vmax_nsl, 1e-12)
+            vmax_nm = max(vmax_nm, 1e-12)
+            im1 = ax1.imshow(df_nsl.values, aspect="auto", cmap="viridis", vmin=0, vmax=vmax_nsl)
+            im2 = ax2.imshow(df_nm.values, aspect="auto", cmap="viridis", vmin=0, vmax=vmax_nm)
+            cb1 = fig.colorbar(im1, ax=ax1, fraction=0.035, pad=0.02)
+            cb1.set_label(r"$D_{ik}$ (NSL scale)", fontsize=FIG_FONT_PT)
+            cb1.ax.tick_params(labelsize=FIG_FONT_PT)
+            cb2 = fig.colorbar(im2, ax=ax2, fraction=0.035, pad=0.02)
+            cb2.set_label(r"$D_{ik}$ (NetML scale)", fontsize=FIG_FONT_PT)
+            cb2.ax.tick_params(labelsize=FIG_FONT_PT)
+        else:
+            im1 = ax1.imshow(df_nsl.values, aspect="auto", cmap="OrRd", vmin=0, vmax=1)
+            im2 = ax2.imshow(df_nm.values, aspect="auto", cmap="OrRd", vmin=0, vmax=1)
+            cb1 = fig.colorbar(im1, ax=ax1, fraction=0.035, pad=0.02)
+            cb1.set_label("1 = elevated (↑/↑↑)", fontsize=FIG_FONT_PT)
+            cb1.ax.tick_params(labelsize=FIG_FONT_PT)
+            cb2 = fig.colorbar(im2, ax=ax2, fraction=0.035, pad=0.02)
+            cb2.set_label("1 = elevated (↑/↑↑)", fontsize=FIG_FONT_PT)
+            cb2.ax.tick_params(labelsize=FIG_FONT_PT)
 
-    for ax, df, title, note in (
-        (ax1, df_nsl, "NSL-KDD", note_nsl),
-        (ax2, df_nm, "NetML", note_nm),
-    ):
-        ax.set_xticks(np.arange(df.shape[1]))
-        ax.set_xticklabels(
-            [_wrap_xtick_label(c) for c in df.columns],
-            rotation=0,
-            ha="center",
-            fontsize=7,
-        )
-        ax.set_yticks(np.arange(df.shape[0]))
-        ax.set_yticklabels(df.index, fontsize=8)
-        ax.set_ylabel("anomaly row index")
-        ax.set_title(title + note)
-        ax.tick_params(axis="x", pad=2)
+        for ax, df, title, note in (
+            (ax1, df_nsl, "NSL-KDD", note_nsl),
+            (ax2, df_nm, "NetML", note_nm),
+        ):
+            ax.set_xticks(np.arange(df.shape[1]))
+            ax.set_xticklabels(
+                [_wrap_xtick_label(c) for c in df.columns],
+                rotation=0,
+                ha="center",
+                fontsize=FIG_FONT_PT,
+            )
+            ax.set_yticks(np.arange(df.shape[0]))
+            ax.set_yticklabels(df.index, fontsize=FIG_FONT_PT)
+            ax.set_ylabel("anomaly row index", fontsize=FIG_FONT_PT)
+            ax.set_title(title + note, fontsize=FIG_FONT_PT)
+            ax.tick_params(axis="x", pad=2, labelsize=FIG_FONT_PT)
+            ax.tick_params(axis="y", labelsize=FIG_FONT_PT)
 
-    filter_desc = (
-        f"label={bde._normalize_label(attack_label_filter)}"
-        if attack_label_filter
-        else "all non-normal"
-    )
-    fig.suptitle(
-        f"Behavior-level scores ({mode}) | seed={seed}, n={n_anomaly} | {filter_desc}",
-        fontsize=11,
-        y=0.995,
-    )
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
-    fig.savefig(out_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+        fig.tight_layout()
+        fig.savefig(out_path, dpi=FIG_SAVE_DPI, bbox_inches="tight")
+        plt.close(fig)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -333,6 +362,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--row-index", type=int, default=None, help="DataFrame index for dual panel; default: first random anomaly")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--top-k", type=int, default=8)
+    p.add_argument(
+        "--dual-label-tag",
+        choices=("auto", "nonnormal"),
+        default="auto",
+        help="Filename segment: auto=use row's attack label; nonnormal=use label_nonnormal in the path.",
+    )
     p.add_argument("--anomaly-samples", type=int, default=5)
     p.add_argument("--heatmap-mode", choices=("score", "level"), default="score")
     p.add_argument(
@@ -375,7 +410,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             rid = int(rng.choice(anomaly_idx.to_numpy(), size=1)[0])
 
         lbl_raw = df_w.loc[rid, "label"]
-        lab_seg = _safe_label_for_filename(lbl_raw)
+        if args.dual_label_tag == "nonnormal":
+            lab_seg = "nonnormal"
+        else:
+            lab_seg = _safe_label_for_filename(lbl_raw)
         if args.dataset == "nsl_kdd":
             src_tag = _path_data_suffix(args.nsl_path, _DEFAULT_NSL)
         else:
@@ -389,11 +427,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if args.mode in ("heatmap", "both"):
         htag = _heatmap_paths_suffix(args.nsl_path, args.netml_path, _DEFAULT_NSL, _DEFAULT_NETML)
-        lab_tag = (
-            f"_label_{_safe_label_for_filename(args.heatmap_attack_label)}"
-            if args.heatmap_attack_label
-            else ""
-        )
+        if args.heatmap_attack_label:
+            lab_tag = f"_label_{_safe_label_for_filename(args.heatmap_attack_label)}"
+        else:
+            lab_tag = "_nonnormal"
         out = args.out_dir / (
             f"{args.prefix}_heatmap_{args.heatmap_mode}_seed{args.seed}_n{args.anomaly_samples}{lab_tag}{htag}.png"
         )
