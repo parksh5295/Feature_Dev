@@ -14,7 +14,7 @@ import sys
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Callable, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -172,7 +172,7 @@ def _run_dataset(
     chosen: np.ndarray,
     seed: int,
     logf,
-) -> None:
+) -> List[Dict[str, Any]]:
     logf.write(f"\n{'=' * 72}\n")
     logf.write(f"# Dataset: {name}\n")
     logf.write(f"# Same anomaly rows (indices): {list(chosen)}\n")
@@ -214,6 +214,32 @@ def _run_dataset(
             spread = max(counts) - min(counts)
             logf.write(f"  spread(max-min)={spread}  (0 => identical elevation count across variants)\n")
 
+    rows_out: List[Dict[str, Any]] = []
+    for idx in range(len(chosen)):
+        counts: List[int] = []
+        for vn in vnames:
+            s = all_summaries.get(vn, [])
+            if idx < len(s):
+                counts.append(s[idx][1])
+        spread_val: Optional[int] = None
+        if len(counts) == len(vnames) and counts:
+            spread_val = max(counts) - min(counts)
+        for vn in vnames:
+            s = all_summaries.get(vn, [])
+            elev = s[idx][1] if idx < len(s) else None
+            rows_out.append(
+                {
+                    "dataset": name,
+                    "seed": seed,
+                    "row_index": int(chosen[idx]),
+                    "sample_order": idx + 1,
+                    "variant": vn,
+                    "n_elevated": elev,
+                    "spread": spread_val,
+                }
+            )
+    return rows_out
+
 
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Grouping ablation: coarse / baseline / fine")
@@ -242,6 +268,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path = _RESULTS_DIR / f"grouping_ablation_{args.dataset}_seed{args.seed}_anom{args.anomaly_samples}_{stamp}.log"
+    csv_path = _RESULTS_DIR / f"grouping_ablation_{args.dataset}_seed{args.seed}_anom{args.anomaly_samples}_{stamp}.csv"
 
     header = [
         "# grouping_ablation_experiment",
@@ -256,6 +283,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         "  fine: more groups (NSL splits rates/volume; NetML splits timing)",
         "",
     ]
+    csv_rows: List[Dict[str, Any]] = []
+
     with open(log_path, "w", encoding="utf-8") as logf:
         logf.write("\n".join(header) + "\n")
 
@@ -278,7 +307,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     "baseline": dict(NSL_BASELINE_GROUPS),
                     "fine": _nsl_fine_groups(),
                 }
-                _run_dataset("nsl_kdd", df, variants, nsl_normal, chosen, args.seed, logf)
+                csv_rows.extend(_run_dataset("nsl_kdd", df, variants, nsl_normal, chosen, args.seed, logf))
 
         if args.dataset in ("netml", "both"):
             if not netml_path.is_file():
@@ -297,7 +326,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                     "baseline": _netml_baseline_groups(df),
                     "fine": _netml_fine_groups(df),
                 }
-                _run_dataset("netml", df, variants, net_pred, chosen, args.seed, logf)
+                csv_rows.extend(_run_dataset("netml", df, variants, net_pred, chosen, args.seed, logf))
+
+    if csv_rows:
+        pd.DataFrame(csv_rows).to_csv(csv_path, index=False, encoding="utf-8")
+        print(f"CSV written: {csv_path}", file=sys.stderr)
 
     print(f"Log written: {log_path}", file=sys.stderr)
     return 0
