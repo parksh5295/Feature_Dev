@@ -7,13 +7,15 @@ Visualize feature-level vs behavior-level deviation for the proposed method.
 
 Example:
   python plot_behavior_explanation.py --mode dual --dataset nsl_kdd --row-index 17423
-  # writes ..._a.png (features) and ..._b.png (behavior scores)
+  # writes ..._row{id}_label_{name}_k{topk}_a.png (stable name; no date if same settings)
   python plot_behavior_explanation.py --mode heatmap --seed 42 --anomaly-samples 5
+  python plot_behavior_explanation.py --mode heatmap --heatmap-attack-label ipsweep --seed 42 --anomaly-samples 5
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 from pathlib import Path
 from typing import Callable, Dict, List, Mapping, Optional, Tuple
@@ -76,6 +78,53 @@ def _prepare_state(
 def _truncate(s: str, n: int = 32) -> str:
     s = str(s)
     return s if len(s) <= n else s[: n - 2] + "…"
+
+
+def _safe_label_for_filename(lab: str, max_len: int = 64) -> str:
+    s = str(bde._normalize_label(lab))
+    for c in '<>:"/\\|?*\n\r\t':
+        s = s.replace(c, "_")
+    s = "_".join(s.split())
+    if len(s) > max_len:
+        s = s[:max_len]
+    return s or "unknown"
+
+
+def _path_data_suffix(path: Path, default_path: Path) -> str:
+    """Short tag when CSV path differs from default (same settings, different file)."""
+    try:
+        if path.resolve() == default_path.resolve():
+            return ""
+    except OSError:
+        pass
+    h = hashlib.md5(str(path.resolve()).encode("utf-8")).hexdigest()[:8]
+    return f"_data{h}"
+
+
+def _wrap_xtick_label(name: str, max_line: int = 14) -> str:
+    """Up to two lines, rotation 0; break at space when possible."""
+    s = str(name).strip()
+    if len(s) <= max_line:
+        return s
+    cut = s.rfind(" ", 0, max_line + 1)
+    if cut < 4:
+        cut = s.find(" ", max_line)
+    if cut < 0:
+        return s[:max_line] + "\n" + s[max_line:]
+    a, b = s[:cut].strip(), s[cut:].strip()
+    if len(b) > max_line * 2:
+        b = b[: max_line * 2 - 1] + "…"
+    return a + "\n" + b
+
+
+def _heatmap_paths_suffix(nsl: Path, netml: Path, default_nsl: Path, default_netml: Path) -> str:
+    try:
+        if nsl.resolve() == default_nsl.resolve() and netml.resolve() == default_netml.resolve():
+            return ""
+    except OSError:
+        pass
+    h = hashlib.md5(f"{nsl.resolve()}|{netml.resolve()}".encode("utf-8")).hexdigest()[:8]
+    return f"_data{h}"
 
 
 def plot_panel_a(
@@ -167,14 +216,27 @@ def plot_heatmap_pair(
     seed: int,
     n_anomaly: int,
     mode: str,
+    attack_label_filter: Optional[str] = None,
 ) -> None:
-    """mode: 'score' (continuous D_ik) or 'level' (binary elevated)."""
+    """mode: 'score' (continuous D_ik) or 'level' (binary elevated).
+    attack_label_filter: if set, only rows whose normalized label equals this (e.g. ipsweep)."""
 
-    def one_dataset(path: Path, load_fn, groups_fn, pred) -> Tuple[pd.DataFrame, List]:
+    def one_dataset(path: Path, load_fn, groups_fn, pred) -> Tuple[pd.DataFrame, List, str]:
         df0 = load_fn(path)
         groups = groups_fn(df0)
         X_all, df_w, mu, q_hi, q_vhi, normal_mask = _prepare_state(df0, groups, pred)
-        anomaly_idx = df_w.index[~normal_mask]
+        lab_norm = df_w["label"].map(bde._normalize_label)
+        anomaly_mask = ~normal_mask
+        title_note = ""
+        if attack_label_filter is not None:
+            tgt = bde._normalize_label(attack_label_filter)
+            filtered = anomaly_mask & (lab_norm == tgt)
+            anomaly_idx = df_w.index[filtered]
+            if len(anomaly_idx) == 0:
+                anomaly_idx = df_w.index[anomaly_mask]
+                title_note = f" (all non-normal; no “{attack_label_filter}” rows)"
+        else:
+            anomaly_idx = df_w.index[anomaly_mask]
         rng = np.random.default_rng(seed)
         n = min(n_anomaly, len(anomaly_idx))
         chosen = rng.choice(anomaly_idx.to_numpy(), size=n, replace=False)
@@ -193,7 +255,11 @@ def plot_heatmap_pair(
                 else:
                     lev = bde.label_behavior_level(D, float(q_hi.get(b, np.inf)), float(q_vhi.get(b, np.inf)))
                     mat[i, j] = 1.0 if lev in ("↑", "↑↑") else 0.0
-        return pd.DataFrame(mat, index=[str(int(x)) for x in chosen], columns=beh_cols), list(chosen)
+        return (
+            pd.DataFrame(mat, index=[str(int(x)) for x in chosen], columns=beh_cols),
+            list(chosen),
+            title_note,
+        )
 
     def nsl_load(p: Path):
         return bde.load_nsl_kdd(p)
@@ -204,10 +270,11 @@ def plot_heatmap_pair(
     def nsl_pred(lab: str) -> bool:
         return bde._normalize_label(lab) in NSL_NORMAL_LABELS
 
-    df_nsl, _ = one_dataset(nsl_path, nsl_load, lambda d: dict(NSL_KDD_BEHAVIOR_GROUPS), nsl_pred)
-    df_nm, _ = one_dataset(netml_path, netml_load, _netml_baseline_groups, bde.default_netml_normal_predicate())
+    df_nsl, _, note_nsl = one_dataset(nsl_path, nsl_load, lambda d: dict(NSL_KDD_BEHAVIOR_GROUPS), nsl_pred)
+    df_nm, _, note_nm = one_dataset(netml_path, netml_load, _netml_baseline_groups, bde.default_netml_normal_predicate())
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, max(3.5, 0.45 * n_anomaly)))
+    h_each = max(3.2, 0.5 * n_anomaly)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9.5, h_each * 2 + 0.8))
 
     if mode == "score":
         # Per-panel vmax: a single huge NetML cell must not wash out NSL-KDD colors.
@@ -217,26 +284,42 @@ def plot_heatmap_pair(
         vmax_nm = max(vmax_nm, 1e-12)
         im1 = ax1.imshow(df_nsl.values, aspect="auto", cmap="viridis", vmin=0, vmax=vmax_nsl)
         im2 = ax2.imshow(df_nm.values, aspect="auto", cmap="viridis", vmin=0, vmax=vmax_nm)
-        fig.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04, label=r"$D_{ik}$ (NSL scale)")
-        fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04, label=r"$D_{ik}$ (NetML scale)")
+        fig.colorbar(im1, ax=ax1, fraction=0.035, pad=0.02, label=r"$D_{ik}$ (NSL scale)")
+        fig.colorbar(im2, ax=ax2, fraction=0.035, pad=0.02, label=r"$D_{ik}$ (NetML scale)")
     else:
         im1 = ax1.imshow(df_nsl.values, aspect="auto", cmap="OrRd", vmin=0, vmax=1)
         im2 = ax2.imshow(df_nm.values, aspect="auto", cmap="OrRd", vmin=0, vmax=1)
-        fig.colorbar(im1, ax=[ax1, ax2], fraction=0.02, pad=0.04, label="1 = elevated (↑/↑↑)")
+        fig.colorbar(im1, ax=ax1, fraction=0.035, pad=0.02, label="1 = elevated (↑/↑↑)")
+        fig.colorbar(im2, ax=ax2, fraction=0.035, pad=0.02, label="1 = elevated (↑/↑↑)")
 
-    for ax, df, title in ((ax1, df_nsl, "NSL-KDD"), (ax2, df_nm, "NetML")):
+    for ax, df, title, note in (
+        (ax1, df_nsl, "NSL-KDD", note_nsl),
+        (ax2, df_nm, "NetML", note_nm),
+    ):
         ax.set_xticks(np.arange(df.shape[1]))
-        ax.set_xticklabels([_truncate(c, 18) for c in df.columns], rotation=55, ha="right", fontsize=7)
+        ax.set_xticklabels(
+            [_wrap_xtick_label(c) for c in df.columns],
+            rotation=0,
+            ha="center",
+            fontsize=7,
+        )
         ax.set_yticks(np.arange(df.shape[0]))
         ax.set_yticklabels(df.index, fontsize=8)
         ax.set_ylabel("anomaly row index")
-        ax.set_title(title)
+        ax.set_title(title + note)
+        ax.tick_params(axis="x", pad=2)
 
-    fig.suptitle(
-        f"Behavior-level scores ({mode}) | seed={seed}, n={n_anomaly}",
-        fontsize=11,
+    filter_desc = (
+        f"label={bde._normalize_label(attack_label_filter)}"
+        if attack_label_filter
+        else "all non-normal"
     )
-    fig.tight_layout()
+    fig.suptitle(
+        f"Behavior-level scores ({mode}) | seed={seed}, n={n_anomaly} | {filter_desc}",
+        fontsize=11,
+        y=0.995,
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
@@ -252,12 +335,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--top-k", type=int, default=8)
     p.add_argument("--anomaly-samples", type=int, default=5)
     p.add_argument("--heatmap-mode", choices=("score", "level"), default="score")
+    p.add_argument(
+        "--heatmap-attack-label",
+        type=str,
+        default=None,
+        metavar="LABEL",
+        help="Only sample anomaly rows with this label (e.g. ipsweep). Default: all non-normal rows.",
+    )
     p.add_argument("--out-dir", type=Path, default=_RESULTS)
     p.add_argument("--prefix", type=str, default="behavior_expl")
     args = p.parse_args(argv)
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    stamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
 
     if args.mode in ("dual", "both"):
         if args.dataset == "nsl_kdd":
@@ -285,7 +374,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             rng = np.random.default_rng(args.seed)
             rid = int(rng.choice(anomaly_idx.to_numpy(), size=1)[0])
 
-        base = f"{args.prefix}_dual_{args.dataset}_row{rid}_{stamp}"
+        lbl_raw = df_w.loc[rid, "label"]
+        lab_seg = _safe_label_for_filename(lbl_raw)
+        if args.dataset == "nsl_kdd":
+            src_tag = _path_data_suffix(args.nsl_path, _DEFAULT_NSL)
+        else:
+            src_tag = _path_data_suffix(args.netml_path, _DEFAULT_NETML)
+        base = f"{args.prefix}_dual_{args.dataset}_row{rid}_label_{lab_seg}_k{args.top_k}{src_tag}"
         out_a = args.out_dir / f"{base}_a.png"
         out_b = args.out_dir / f"{base}_b.png"
         plot_dual_separate(out_a, out_b, X_all, mu, q_hi, q_vhi, groups, rid, args.top_k)
@@ -293,8 +388,24 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"Wrote {out_b}", file=sys.stderr)
 
     if args.mode in ("heatmap", "both"):
-        out = args.out_dir / f"{args.prefix}_heatmap_{args.heatmap_mode}_seed{args.seed}_n{args.anomaly_samples}_{stamp}.png"
-        plot_heatmap_pair(out, args.nsl_path, args.netml_path, args.seed, args.anomaly_samples, args.heatmap_mode)
+        htag = _heatmap_paths_suffix(args.nsl_path, args.netml_path, _DEFAULT_NSL, _DEFAULT_NETML)
+        lab_tag = (
+            f"_label_{_safe_label_for_filename(args.heatmap_attack_label)}"
+            if args.heatmap_attack_label
+            else ""
+        )
+        out = args.out_dir / (
+            f"{args.prefix}_heatmap_{args.heatmap_mode}_seed{args.seed}_n{args.anomaly_samples}{lab_tag}{htag}.png"
+        )
+        plot_heatmap_pair(
+            out,
+            args.nsl_path,
+            args.netml_path,
+            args.seed,
+            args.anomaly_samples,
+            args.heatmap_mode,
+            attack_label_filter=args.heatmap_attack_label,
+        )
         print(f"Wrote {out}", file=sys.stderr)
 
     return 0

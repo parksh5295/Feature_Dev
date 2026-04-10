@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
@@ -396,10 +395,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     netml_path = resolve(args.netml_path, _DEFAULT_NETML_CSV)
 
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     scope_tag = f"scope-{args.scope}" + (f"_anom{args.anomaly_samples}" if args.scope == "sample" else "")
-    log_path = _RESULTS_DIR / f"grouping_ablation_{args.dataset}_{scope_tag}_seed{args.seed}_{stamp}.log"
-    csv_path = _RESULTS_DIR / f"grouping_ablation_{args.dataset}_{scope_tag}_seed{args.seed}_{stamp}.csv"
+    log_path = _RESULTS_DIR / f"grouping_ablation_{args.dataset}_{scope_tag}_seed{args.seed}.log"
+    csv_path = _RESULTS_DIR / f"grouping_ablation_{args.dataset}_{scope_tag}_seed{args.seed}.csv"
 
     header = [
         "# grouping_ablation_experiment",
@@ -407,7 +405,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         f"# scope={args.scope}",
         f"# seed={args.seed}",
         f"# anomaly_samples(used when scope=sample)={args.anomaly_samples}",
-        f"# time={datetime.now().isoformat(timespec='seconds')}",
         "",
         "Variants:",
         "  coarse: fewer, merged behavior groups",

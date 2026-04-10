@@ -7,7 +7,6 @@ import argparse
 import re
 import sys
 from contextlib import contextmanager
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, TextIO, Tuple
 
@@ -387,11 +386,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         normal_pred = default_netml_normal_predicate()
 
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path = (
-        _RESULTS_DIR
-        / f"{args.dataset}_seed{args.seed}_anom{args.anomaly_samples}_{stamp}.log"
-    )
+    log_path = _RESULTS_DIR / f"{args.dataset}_seed{args.seed}_anom{args.anomaly_samples}.log"
     header_lines = [
         "# behavior_deviation_experiment",
         f"# dataset={args.dataset}",
@@ -399,7 +394,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         f"# path={path.resolve()}",
         f"# anomaly_samples={args.anomaly_samples}",
         f"# rows={len(df)}",
-        f"# time={datetime.now().isoformat(timespec='seconds')}",
     ]
     if args.dataset == "netml":
         header_lines.append(f"# netml_label={args.netml_label or '(auto)'}")
