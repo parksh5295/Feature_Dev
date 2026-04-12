@@ -111,7 +111,7 @@ def plot_entropy_overview(
             grid = [(i, axes[i, 0], axes[i, 1], series[i]) for i in range(n_ds)]
 
         xlabs = ["Feature-level\nentropy", "Behavior-level\nentropy"]
-        for _, ax_box, ax_hist, (ds_name, hf, hb) in grid:
+        for _, ax_box, ax_hist, (_, hf, hb) in grid:
             data = [hf, hb]
             try:
                 bp = ax_box.boxplot(
@@ -131,7 +131,6 @@ def plot_entropy_overview(
                 patch.set(facecolor=c, alpha=0.75)
             ax_box.set_ylabel(r"Entropy $H$ (nats)")
             ax_box.grid(axis="y", alpha=0.3)
-            ax_box.set_title(f"{ds_name}: $H_{{\mathrm{{feat}}}}$ vs $H_{{\mathrm{{beh}}}}$ ($n={len(hf)}$)")
 
             delta = hf - hb
             ax_hist.hist(
@@ -145,16 +144,9 @@ def plot_entropy_overview(
             ax_hist.set_xlabel(r"$\Delta H = H_{\mathrm{feat}} - H_{\mathrm{beh}}$ (per row)")
             ax_hist.set_ylabel("Count")
             ax_hist.grid(axis="y", alpha=0.3)
-            pos_share = 100.0 * float(np.mean(delta > 0)) if len(delta) else 0.0
-            ax_hist.set_title(
-                rf"{ds_name}: $\Delta H$ ($\Delta H>0$: {pos_share:.1f}\% of rows)"
-            )
 
-        fig.suptitle(
-            title or "Explanation concentration: feature- vs behavior-level entropy",
-            fontsize=FIG_FONT_PT + 1,
-            y=1.02,
-        )
+        if title.strip():
+            fig.suptitle(title.strip(), fontsize=FIG_FONT_PT + 1, y=1.02)
         fig.tight_layout()
         out_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out_path, dpi=FIG_SAVE_DPI, bbox_inches="tight")
