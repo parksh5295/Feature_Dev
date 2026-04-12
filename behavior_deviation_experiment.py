@@ -162,6 +162,21 @@ def feature_deviations_row(row: pd.Series, mu: pd.Series) -> pd.Series:
     return (row - aligned).abs()
 
 
+def entropy_of_nonnegative_weights(v: np.ndarray, eps: float = 1e-30) -> float:
+    """
+    Shannon entropy (natural log) of p_i = v_i / sum_j v_j for nonnegative v.
+    If sum(v) is 0 or non-finite, returns 0.0.
+    """
+    arr = np.asarray(v, dtype=float).reshape(-1)
+    arr = np.clip(arr, 0.0, None)
+    s = float(arr.sum())
+    if s <= 0.0 or not np.isfinite(s):
+        return 0.0
+    p = arr / s
+    p = p[p > eps]
+    return float(-np.sum(p * np.log(p)))
+
+
 def behavior_scores_from_deviations(
     deviations: pd.Series, groups: Mapping[str, List[str]]
 ) -> Dict[str, float]:

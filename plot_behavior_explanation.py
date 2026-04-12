@@ -8,7 +8,7 @@ Visualize feature-level vs behavior-level deviation for the proposed method.
 Example:
   python plot_behavior_explanation.py --mode dual --dataset nsl_kdd --row-index 17423
   # writes ..._row{id}_label_{name}_k{topk}_a.png (stable name; no date if same settings)
-  # use --dual-label-tag nonnormal for ..._label_nonnormal_... filenames
+  # nonnormal: ..._label_nonnormal_...; omit --row-index to pick another row than --dual-label-tag auto (same --seed).
   # heatmap: ..._heatmap_{mode}_seed{seed}_n{n}_nonnormal.png or ..._label_{attack}.png
   python plot_behavior_explanation.py --mode heatmap --seed 42 --anomaly-samples 5
   python plot_behavior_explanation.py --mode heatmap --heatmap-attack-label ipsweep --seed 42 --anomaly-samples 5
@@ -35,11 +35,27 @@ _DEFAULT_NSL = _ROOT / "Dataset" / "KDDTest.csv"
 _DEFAULT_NETML = _ROOT / "Dataset" / "netML_dataset.csv"
 _RESULTS = _ROOT / "results"
 
-# create_conditions_graph.py: axis labels, ticks, legend share one fontsize (40).
-# Same policy (single size everywhere); ~15pt reads well at typical paper column width @ 200 dpi.
+# With --dual-label-tag nonnormal and no --row-index, use a different RNG stream than "auto"
+# so the sample row differs from default auto (same --seed) — mixed-attack illustration.
+_DUAL_NONNORMAL_ROW_SEED_OFFSET = 9_871_293
+
+# Single fontsize for all text in a figure; slightly larger than before for bar/heatmap readability @ 200 dpi.
 FIG_FONT_FAMILY = "Times New Roman"
-FIG_FONT_PT = 15
+FIG_FONT_PT = 17
 FIG_SAVE_DPI = 200
+
+
+def _behavior_expl_rc() -> dict:
+    return {
+        "font.family": "serif",
+        "font.serif": [FIG_FONT_FAMILY, "DejaVu Serif", "Times New Roman"],
+        "font.size": FIG_FONT_PT,
+        "axes.titlesize": FIG_FONT_PT,
+        "axes.labelsize": FIG_FONT_PT,
+        "xtick.labelsize": FIG_FONT_PT,
+        "ytick.labelsize": FIG_FONT_PT,
+        "legend.fontsize": FIG_FONT_PT,
+    }
 
 
 def _netml_baseline_groups(df: pd.DataFrame) -> Dict[str, List[str]]:
@@ -140,17 +156,16 @@ def plot_panel_a(
     dev: pd.Series,
     top_k: int,
 ) -> None:
-    with plt.rc_context({"font.family": FIG_FONT_FAMILY}):
+    with plt.rc_context(_behavior_expl_rc()):
         top = dev.sort_values(ascending=False).head(top_k)
         n = len(top)
-        fig, ax = plt.subplots(figsize=(7.8, max(3.8, 0.58 * n)))
+        fig, ax = plt.subplots(figsize=(8.0, max(4.2, 0.64 * n)))
         y_pos = np.arange(n)
         ax.barh(y_pos, top.values, height=0.72, color="steelblue")
         ax.set_yticks(y_pos)
-        ax.set_yticklabels([_truncate(str(i)) for i in top.index], fontsize=FIG_FONT_PT)
+        ax.set_yticklabels([_truncate(str(i)) for i in top.index])
         ax.invert_yaxis()
-        ax.set_xlabel(r"Feature deviation $|x_{ij}-\mu_j|$", fontsize=FIG_FONT_PT)
-        ax.tick_params(axis="x", labelsize=FIG_FONT_PT)
+        ax.set_xlabel(r"Feature deviation $|x_{ij}-\mu_j|$")
         ax.grid(axis="x", alpha=0.3)
         fig.tight_layout()
         fig.savefig(out_path, dpi=FIG_SAVE_DPI, bbox_inches="tight")
@@ -163,10 +178,10 @@ def plot_panel_b(
     q_hi: pd.Series,
     q_vhi: pd.Series,
 ) -> None:
-    with plt.rc_context({"font.family": FIG_FONT_FAMILY}):
+    with plt.rc_context(_behavior_expl_rc()):
         beh_names = sorted(scores.keys())
         n_b = len(beh_names)
-        fig = plt.figure(figsize=(10.8, max(5.0, 0.74 * n_b)))
+        fig = plt.figure(figsize=(10.8, max(5.4, 0.78 * n_b)))
         gs = gridspec.GridSpec(n_b, 1, figure=fig, hspace=0.62)
 
         for i, bname in enumerate(beh_names):
@@ -183,15 +198,11 @@ def plot_panel_b(
                 ax.axvline(qv, color="crimson", linestyle="--", linewidth=2.0)
             ax.set_xlim(0, xmax)
             ax.set_yticks([])
-            ax.set_ylabel(
-                _truncate(bname, 34), fontsize=FIG_FONT_PT, rotation=0, ha="right", va="center"
-            )
-            ax.tick_params(axis="x", labelsize=FIG_FONT_PT)
+            ax.set_ylabel(_truncate(bname, 34), rotation=0, ha="right", va="center")
             ax.grid(axis="x", alpha=0.25)
             if i == n_b - 1:
                 ax.set_xlabel(
                     r"Behavior deviation score (same units as $|x-\mu|$ within $G_k$)",
-                    fontsize=FIG_FONT_PT,
                     labelpad=12,
                 )
 
@@ -208,7 +219,6 @@ def plot_panel_b(
             loc="upper center",
             ncol=3,
             bbox_to_anchor=(0.5, -0.02),
-            fontsize=FIG_FONT_PT,
             frameon=True,
         )
 
@@ -303,9 +313,9 @@ def plot_heatmap_pair(
     df_nsl, _, note_nsl = one_dataset(nsl_path, nsl_load, lambda d: dict(NSL_KDD_BEHAVIOR_GROUPS), nsl_pred)
     df_nm, _, note_nm = one_dataset(netml_path, netml_load, _netml_baseline_groups, bde.default_netml_normal_predicate())
 
-    h_each = max(3.2, 0.5 * n_anomaly)
-    with plt.rc_context({"font.family": FIG_FONT_FAMILY, "font.size": FIG_FONT_PT}):
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9.5, h_each * 2 + 0.8))
+    h_each = max(3.8, 0.58 * n_anomaly + 0.35)
+    with plt.rc_context(_behavior_expl_rc()):
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9.8, h_each * 2 + 0.9))
 
         if mode == "score":
             vmax_nsl = float(np.nanmax(df_nsl.values)) if np.isfinite(df_nsl.values.max()) else 1e-12
@@ -315,19 +325,19 @@ def plot_heatmap_pair(
             im1 = ax1.imshow(df_nsl.values, aspect="auto", cmap="viridis", vmin=0, vmax=vmax_nsl)
             im2 = ax2.imshow(df_nm.values, aspect="auto", cmap="viridis", vmin=0, vmax=vmax_nm)
             cb1 = fig.colorbar(im1, ax=ax1, fraction=0.035, pad=0.02)
-            cb1.set_label(r"$D_{ik}$ (NSL scale)", fontsize=FIG_FONT_PT)
+            cb1.set_label(r"$D_{ik}$ (NSL scale)")
             cb1.ax.tick_params(labelsize=FIG_FONT_PT)
             cb2 = fig.colorbar(im2, ax=ax2, fraction=0.035, pad=0.02)
-            cb2.set_label(r"$D_{ik}$ (NetML scale)", fontsize=FIG_FONT_PT)
+            cb2.set_label(r"$D_{ik}$ (NetML scale)")
             cb2.ax.tick_params(labelsize=FIG_FONT_PT)
         else:
             im1 = ax1.imshow(df_nsl.values, aspect="auto", cmap="OrRd", vmin=0, vmax=1)
             im2 = ax2.imshow(df_nm.values, aspect="auto", cmap="OrRd", vmin=0, vmax=1)
             cb1 = fig.colorbar(im1, ax=ax1, fraction=0.035, pad=0.02)
-            cb1.set_label("1 = elevated (↑/↑↑)", fontsize=FIG_FONT_PT)
+            cb1.set_label("1 = elevated (↑/↑↑)")
             cb1.ax.tick_params(labelsize=FIG_FONT_PT)
             cb2 = fig.colorbar(im2, ax=ax2, fraction=0.035, pad=0.02)
-            cb2.set_label("1 = elevated (↑/↑↑)", fontsize=FIG_FONT_PT)
+            cb2.set_label("1 = elevated (↑/↑↑)")
             cb2.ax.tick_params(labelsize=FIG_FONT_PT)
 
         for ax, df, title, note in (
@@ -339,14 +349,12 @@ def plot_heatmap_pair(
                 [_wrap_xtick_label(c) for c in df.columns],
                 rotation=0,
                 ha="center",
-                fontsize=FIG_FONT_PT,
             )
             ax.set_yticks(np.arange(df.shape[0]))
-            ax.set_yticklabels(df.index, fontsize=FIG_FONT_PT)
-            ax.set_ylabel("anomaly row index", fontsize=FIG_FONT_PT)
-            ax.set_title(title + note, fontsize=FIG_FONT_PT)
-            ax.tick_params(axis="x", pad=2, labelsize=FIG_FONT_PT)
-            ax.tick_params(axis="y", labelsize=FIG_FONT_PT)
+            ax.set_yticklabels(df.index)
+            ax.set_ylabel("anomaly row index")
+            ax.set_title(title + note)
+            ax.tick_params(axis="x", pad=2)
 
         fig.tight_layout()
         fig.savefig(out_path, dpi=FIG_SAVE_DPI, bbox_inches="tight")
@@ -366,7 +374,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--dual-label-tag",
         choices=("auto", "nonnormal"),
         default="auto",
-        help="Filename segment: auto=use row's attack label; nonnormal=use label_nonnormal in the path.",
+        help=(
+            "auto: filename includes this row's attack label. "
+            "nonnormal: filename uses label_nonnormal; if --row-index is omitted, row is drawn with a "
+            "separate seed from 'auto' (same --seed) so the plot usually differs from the auto case. "
+            "If you set --row-index, the figure is that row only — same pixels as auto for the same row."
+        ),
     )
     p.add_argument("--anomaly-samples", type=int, default=5)
     p.add_argument("--heatmap-mode", choices=("score", "level"), default="score")
@@ -405,9 +418,25 @@ def main(argv: Optional[List[str]] = None) -> int:
             if rid not in X_all.index:
                 print(f"row_index {rid} not in data.", file=sys.stderr)
                 return 1
+            if args.dual_label_tag == "nonnormal":
+                print(
+                    "dual: --row-index is set; plot content is this row only. "
+                    "Filename says label_nonnormal but values match the row's true label.",
+                    file=sys.stderr,
+                )
         else:
-            rng = np.random.default_rng(args.seed)
+            pick_seed = (
+                args.seed + _DUAL_NONNORMAL_ROW_SEED_OFFSET
+                if args.dual_label_tag == "nonnormal"
+                else args.seed
+            )
+            rng = np.random.default_rng(pick_seed)
             rid = int(rng.choice(anomaly_idx.to_numpy(), size=1)[0])
+            if args.dual_label_tag == "nonnormal":
+                print(
+                    f"dual nonnormal: picked row_index={rid} (true label={df_w.loc[rid, 'label']!r})",
+                    file=sys.stderr,
+                )
 
         lbl_raw = df_w.loc[rid, "label"]
         if args.dual_label_tag == "nonnormal":
