@@ -40,9 +40,9 @@ _RESULTS = _ROOT / "results"
 # so the sample row differs from default auto (same --seed) — mixed-attack illustration.
 _DUAL_NONNORMAL_ROW_SEED_OFFSET = 9_871_293
 
-# Single fontsize for all text in a figure; slightly larger than before for bar/heatmap readability @ 200 dpi.
+# Single fontsize for all text in a figure (bar, heatmap, dual, entropy overview @ 200 dpi).
 FIG_FONT_FAMILY = "Times New Roman"
-FIG_FONT_PT = 17
+FIG_FONT_PT = 24
 FIG_SAVE_DPI = 200
 
 
@@ -56,6 +56,7 @@ def _behavior_expl_rc() -> dict:
         "xtick.labelsize": FIG_FONT_PT,
         "ytick.labelsize": FIG_FONT_PT,
         "legend.fontsize": FIG_FONT_PT,
+        "figure.titlesize": FIG_FONT_PT,
     }
 
 

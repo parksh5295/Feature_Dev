@@ -205,7 +205,7 @@ def plot_aggregate_figures(df: pd.DataFrame, out_base: Path, heatmap_top: int = 
         ax.set_xticks(np.arange(len(pv.columns)))
         ax.set_xticklabels(list(pv.columns), rotation=0)
         ax.set_yticks(np.arange(len(pv.index)))
-        ax.set_yticklabels([str(i)[:28] for i in pv.index], fontsize=7)
+        ax.set_yticklabels([str(i)[:28] for i in pv.index])
         ax.set_xlabel("grouping variant")
         ax.set_ylabel("attack_label (top by row count)")
         fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02, label="mean n_elevated")
@@ -250,7 +250,7 @@ def plot_grouped_bars(df: pd.DataFrame, out_path: Path, title: str = "") -> None
         ax.grid(axis="y", alpha=0.3)
     for j in range(len(datasets), nrows * ncols):
         axes.flat[j].set_visible(False)
-    fig.suptitle(title or "Grouping ablation: elevated behavior groups per sample", fontsize=12)
+    fig.suptitle(title or "Grouping ablation: elevated behavior groups per sample")
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -296,6 +296,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     p.add_argument("--heatmap-top", type=int, default=32, help="Top attack labels by count in heatmap")
     args = p.parse_args(argv)
+
+    from plot_behavior_explanation import _behavior_expl_rc
+
+    plt.rcParams.update(_behavior_expl_rc())
 
     inp = args.csv or args.log
     assert inp is not None

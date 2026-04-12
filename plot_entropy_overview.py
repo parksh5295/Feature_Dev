@@ -155,7 +155,7 @@ def plot_entropy_overview(
     box_colors = (c_feat, c_variant["coarse"], c_variant["baseline"], c_variant["fine"])
 
     xlabs_left = [
-        "Feature-level\nentropy",
+        "Feature",
         "Behavior\n(coarse)",
         "Behavior\n(baseline)",
         "Behavior\n(fine)",
@@ -250,7 +250,7 @@ def plot_entropy_overview(
         fig.tight_layout(rect=(0.0, bottom_margin, 1.0, 0.98))
         fig.canvas.draw()
         # loc='upper center': top of legend box at y_anchor — place well below axis + xlabels.
-        legend_below_axes = 0.095
+        legend_below_axes = 0.108
         for ax_l, ax_r in row_axes:
             pos_l = ax_l.get_position()
             pos_r = ax_r.get_position()
