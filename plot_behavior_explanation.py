@@ -24,6 +24,7 @@ from typing import Callable, Dict, List, Mapping, Optional, Tuple
 
 from matplotlib import gridspec
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 import pandas as pd
 
@@ -197,6 +198,9 @@ def plot_panel_b(
             if np.isfinite(qv):
                 ax.axvline(qv, color="crimson", linestyle="--", linewidth=2.0)
             ax.set_xlim(0, xmax)
+            # NetML 등 큰 스케일에서 Matplotlib가 축 모서리에 "1e6"/"1e7" 오프셋을 띄우는 것을 끔.
+            ax.ticklabel_format(axis="x", style="plain", useOffset=False)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=6, min_n_ticks=3))
             ax.set_yticks([])
             ax.set_ylabel(_truncate(bname, 34), rotation=0, ha="right", va="center")
             ax.grid(axis="x", alpha=0.25)
