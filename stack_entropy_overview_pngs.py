@@ -8,7 +8,7 @@ nearest-neighbor scaling when --scale is an integer > 1 (sharp edges for print).
 
 Example:
   python stack_entropy_overview_pngs.py
-  python stack_entropy_overview_pngs.py --gap 24 --scale 2
+  python stack_entropy_overview_pngs.py --gap 8 --scale 2
   python stack_entropy_overview_pngs.py --dpi 200
 """
 
@@ -64,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--nsl", type=Path, default=_DEFAULT_NSL, help="Top image (NSL-KDD)")
     p.add_argument("--netml", type=Path, default=_DEFAULT_NETML, help="Bottom image (NetML)")
     p.add_argument("--out", type=Path, default=_DEFAULT_OUT, help="Output PNG path")
-    p.add_argument("--gap", type=int, default=16, help="Pixels of white space between images")
+    p.add_argument("--gap", type=int, default=2, help="Pixels of white space between stacked images")
     p.add_argument(
         "--order",
         choices=("nsl_netml", "netml_nsl"),

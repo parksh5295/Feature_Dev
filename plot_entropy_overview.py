@@ -37,6 +37,25 @@ from plot_behavior_explanation import (
 )
 from utils.nsl_kdd_config import NSL_KDD_BEHAVIOR_GROUPS, NSL_NORMAL_LABELS
 
+# Larger than dual/heatmap (same script family); entropy figure has dense x labels.
+_ENTROPY_FONT_PT = FIG_FONT_PT + 10
+
+
+def _entropy_overview_rc() -> dict:
+    rc = dict(_behavior_expl_rc())
+    for k in (
+        "font.size",
+        "axes.titlesize",
+        "axes.labelsize",
+        "xtick.labelsize",
+        "ytick.labelsize",
+        "legend.fontsize",
+        "figure.titlesize",
+    ):
+        rc[k] = _ENTROPY_FONT_PT
+    return rc
+
+
 _ROOT = Path(__file__).resolve().parent
 _DEFAULT_NSL = _ROOT / "Dataset" / "KDDTest.csv"
 _DEFAULT_NETML = _ROOT / "Dataset" / "netML_dataset.csv"
@@ -145,9 +164,10 @@ def plot_entropy_overview(
         raise ValueError("No anomaly rows with valid entropies.")
 
     n_ds = len(series)
-    fig_w = 14.5
-    # Extra bottom space so legend sits below x-axis labels (incl. multi-line ticks).
-    fig_h = 5.35 * n_ds + 0.55 + 0.25 * max(0, n_ds - 1)
+    # Wider figure; left column wider than right (width_ratios) for x tick labels.
+    fig_w = 16.8
+    # Extra bottom space so legend sits below x-axis labels.
+    fig_h = 5.75 * n_ds + 0.72 + 0.30 * max(0, n_ds - 1)
 
     # Same colors for coarse / baseline / fine on left (boxes 2–4) and right (histograms).
     c_feat = "#4682b4"
@@ -192,9 +212,18 @@ def plot_entropy_overview(
     ]
     legend_labels = [h.get_label() for h in legend_handles]
 
-    with plt.rc_context(_behavior_expl_rc()):
+    with plt.rc_context(_entropy_overview_rc()):
         fig = plt.figure(figsize=(fig_w, fig_h))
-        gs = GridSpec(n_ds, 2, figure=fig, height_ratios=[1] * n_ds, hspace=0.48, wspace=0.26)
+        gs = GridSpec(
+            n_ds,
+            2,
+            figure=fig,
+            height_ratios=[1] * n_ds,
+            width_ratios=[1.72, 0.82],
+            hspace=0.48,
+            # Extra gap so histogram y-label ("Count") does not crowd the boxplot panel.
+            wspace=0.30,
+        )
         row_axes: List[Tuple[Axes, Axes]] = []
 
         for row, (_, hf, h_beh) in enumerate(series):
@@ -239,18 +268,18 @@ def plot_entropy_overview(
                     linewidth=0.35,
                 )
             ax_hist.axvline(0.0, color="black", linestyle="--", linewidth=1.0, alpha=0.75)
-            ax_hist.set_xlabel(r"$\Delta H = H_{\mathrm{feat}} - H_{\mathrm{beh}}$ (per row)")
+            ax_hist.set_xlabel(r"$\Delta H = H_{\mathrm{feat}} - H_{\mathrm{beh}}$")
             ax_hist.set_ylabel("Count")
             ax_hist.grid(axis="y", alpha=0.3)
             row_axes.append((ax_box, ax_hist))
 
         if title.strip():
-            fig.suptitle(title.strip(), fontsize=FIG_FONT_PT + 1, y=1.01)
+            fig.suptitle(title.strip(), fontsize=_ENTROPY_FONT_PT + 1, y=1.01)
         bottom_margin = 0.11 + 0.07 * max(0, n_ds - 1)
-        fig.tight_layout(rect=(0.0, bottom_margin, 1.0, 0.98))
+        fig.tight_layout(rect=(0.0, bottom_margin, 0.82, 0.98))
         fig.canvas.draw()
         # loc='upper center': top of legend box at y_anchor — place well below axis + xlabels.
-        legend_below_axes = 0.108
+        legend_below_axes = 0.118
         for ax_l, ax_r in row_axes:
             pos_l = ax_l.get_position()
             pos_r = ax_r.get_position()
@@ -270,7 +299,7 @@ def plot_entropy_overview(
             )
             fig.add_artist(leg)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out_path, dpi=FIG_SAVE_DPI, bbox_inches="tight")
+        fig.savefig(out_path, dpi=FIG_SAVE_DPI, bbox_inches="tight", pad_inches=0.24)
         plt.close(fig)
 
 
